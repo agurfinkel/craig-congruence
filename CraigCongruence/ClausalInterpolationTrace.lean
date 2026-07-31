@@ -1,4 +1,4 @@
-import EufItpLean.ColoredClausalProof
+import CraigCongruence.ColoredClausalProof
 
 namespace EUF
 

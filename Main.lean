@@ -1,4 +1,4 @@
-import EufItpLean
+import CraigCongruence
 
 def main : IO Unit :=
-  IO.println "EUF proof library"
+  IO.println "CraigCongruence: verified EUF interpolation"

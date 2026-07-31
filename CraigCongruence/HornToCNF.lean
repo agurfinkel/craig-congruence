@@ -1,4 +1,4 @@
-import EufItpLean.ClausalProof
+import CraigCongruence.ClausalProof
 
 namespace EUF
 

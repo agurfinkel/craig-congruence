@@ -1,6 +1,6 @@
 {"version": "1.2.0",
  "packagesDir": ".lake/packages",
  "packages": [],
- "name": "«euf-itp-lean»",
+ "name": "«craig-congruence»",
  "lakeDir": ".lake",
  "fixedToolchain": false}

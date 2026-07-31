@@ -1,5 +1,5 @@
-import EufItpLean.Color
-import EufItpLean.Horn
+import CraigCongruence.Color
+import CraigCongruence.Horn
 
 namespace EUF
 

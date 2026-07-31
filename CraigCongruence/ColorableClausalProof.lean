@@ -1,4 +1,4 @@
-import EufItpLean.ClausalInterpolationTrace
+import CraigCongruence.ClausalInterpolationTrace
 
 namespace EUF
 

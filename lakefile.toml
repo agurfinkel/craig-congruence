@@ -1,10 +1,10 @@
-name = "euf-itp-lean"
+name = "craig-congruence"
 version = "0.1.0"
-defaultTargets = ["euf-itp-lean"]
+defaultTargets = ["craig-congruence"]
 
 [[lean_lib]]
-name = "EufItpLean"
+name = "CraigCongruence"
 
 [[lean_exe]]
-name = "euf-itp-lean"
+name = "craig-congruence"
 root = "Main"

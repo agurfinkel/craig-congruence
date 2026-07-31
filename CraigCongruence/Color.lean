@@ -1,4 +1,4 @@
-import EufItpLean.Syntax
+import CraigCongruence.Syntax
 
 namespace EUF
 

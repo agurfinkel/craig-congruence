@@ -1,4 +1,4 @@
-import EufItpLean.HornToCNF
+import CraigCongruence.HornToCNF
 
 namespace EUF
 

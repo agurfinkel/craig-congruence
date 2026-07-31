@@ -1,4 +1,4 @@
-import EufItpLean.Semantics
+import CraigCongruence.Semantics
 
 namespace EUF
 

@@ -1,4 +1,4 @@
-import EufItpLean.Interpolation
+import CraigCongruence.Interpolation
 
 namespace EUF
 
