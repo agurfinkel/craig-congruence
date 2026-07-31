@@ -7,6 +7,7 @@ The current formalization provides:
 
 - arity-indexed function signatures and ground terms;
 - finite colored signatures, colorability, and local/shared formula colors;
+- semantic interpolation conditions for two colored conjunctive formulas;
 - equality and disequality literals, interpreted conjunctively;
 - standard EUF interpretations and satisfaction;
 - equality derivations closed under reflexivity, symmetry, transitivity, and

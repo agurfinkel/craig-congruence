@@ -3,5 +3,6 @@
 import EufItpLean.Syntax
 import EufItpLean.Color
 import EufItpLean.Semantics
+import EufItpLean.Interpolation
 import EufItpLean.CongruenceGraph
 import EufItpLean.Examples

@@ -41,10 +41,50 @@ def SatisfiesLiteral (interpretation : Interpretation σ) : Literal σ → Prop
 def Satisfies (interpretation : Interpretation σ) (formula : Formula σ) : Prop :=
   ∀ literal ∈ formula, SatisfiesLiteral interpretation literal
 
+/-- Semantic entailment between conjunctive EUF formulas. -/
+def Entails (antecedent consequent : Formula σ) : Prop :=
+  ∀ interpretation : Interpretation σ,
+    Satisfies interpretation antecedent →
+      Satisfies interpretation consequent
+
+@[simp]
+theorem satisfies_append (interpretation : Interpretation σ)
+    (left right : Formula σ) :
+    Satisfies interpretation (left ++ right) ↔
+      Satisfies interpretation left ∧ Satisfies interpretation right := by
+  simp only [Satisfies, List.mem_append]
+  constructor
+  · intro satisfies
+    constructor
+    · intro literal member
+      exact satisfies literal (Or.inl member)
+    · intro literal member
+      exact satisfies literal (Or.inr member)
+  · rintro ⟨satisfiesLeft, satisfiesRight⟩ literal (member | member)
+    · exact satisfiesLeft literal member
+    · exact satisfiesRight literal member
+
 def Satisfiable (formula : Formula σ) : Prop :=
   ∃ interpretation : Interpretation σ, Satisfies interpretation formula
 
 def Unsatisfiable (formula : Formula σ) : Prop :=
   ¬Satisfiable formula
+
+/-- Entailment of an unsatisfiable continuation makes the original
+conjunction unsatisfiable. This is the semantic core of the redundancy of the
+usual interpolation consistency condition. -/
+theorem unsatisfiable_append_of_entails_of_unsatisfiable
+    (entails : Entails left middle)
+    (unsatisfiable : Unsatisfiable (middle ++ right)) :
+    Unsatisfiable (left ++ right) := by
+  rintro ⟨interpretation, satisfies⟩
+  have satisfiesLeft : Satisfies interpretation left :=
+    (satisfies_append interpretation left right).mp satisfies |>.1
+  have satisfiesRight : Satisfies interpretation right :=
+    (satisfies_append interpretation left right).mp satisfies |>.2
+  apply unsatisfiable
+  refine ⟨interpretation, ?_⟩
+  exact (satisfies_append interpretation middle right).mpr
+    ⟨entails interpretation satisfiesLeft, satisfiesRight⟩
 
 end EUF
