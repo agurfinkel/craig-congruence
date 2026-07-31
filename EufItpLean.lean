@@ -9,4 +9,5 @@ import EufItpLean.EquationalTheory
 import EufItpLean.CongruenceGraph
 import EufItpLean.AbstractCongruenceClosure
 import EufItpLean.InterpolationProcedure
+import EufItpLean.ClausalInterpolation
 import EufItpLean.Examples

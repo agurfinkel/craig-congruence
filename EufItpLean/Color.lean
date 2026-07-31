@@ -77,6 +77,26 @@ def Colorable (colored : ColoredSignature k)
     (literal : Literal colored.toSignature) : Prop :=
   ∃ color, HasColor colored literal color
 
+@[simp]
+theorem availableIn_negate_iff (colored : ColoredSignature k)
+    (formula : Fin k) (literal : Literal colored.toSignature) :
+    literal.negate.AvailableIn colored formula ↔
+      literal.AvailableIn colored formula := by
+  cases literal <;> rfl
+
+@[simp]
+theorem hasColor_negate_iff (colored : ColoredSignature k)
+    (literal : Literal colored.toSignature) (color : Color k) :
+    literal.negate.HasColor colored color ↔
+      literal.HasColor colored color := by
+  simp only [HasColor, availableIn_negate_iff]
+
+@[simp]
+theorem colorable_negate_iff (colored : ColoredSignature k)
+    (literal : Literal colored.toSignature) :
+    literal.negate.Colorable colored ↔ literal.Colorable colored := by
+  simp only [Colorable, hasColor_negate_iff]
+
 end Literal
 
 namespace Formula

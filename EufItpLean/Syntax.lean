@@ -27,6 +27,21 @@ inductive Literal (σ : Signature) where
   | eq (left right : Term σ)
   | ne (left right : Term σ)
 
+namespace Literal
+
+/-- Complement an equality literal. This is used to turn the disjunctive
+contents of a clause into the conjunctive formula falsifying that clause. -/
+def negate : Literal σ → Literal σ
+  | .eq left right => .ne left right
+  | .ne left right => .eq left right
+
+@[simp]
+theorem negate_negate (literal : Literal σ) :
+    literal.negate.negate = literal := by
+  cases literal <;> rfl
+
+end Literal
+
 /-- An EUF formula is a conjunction of equality and disequality literals. -/
 abbrev Formula (σ : Signature) := List (Literal σ)
 
