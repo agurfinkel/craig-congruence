@@ -12,6 +12,7 @@ The current formalization provides:
 - standard EUF interpretations and satisfaction;
 - equality derivations closed under reflexivity, symmetry, transitivity, and
   function congruence;
+- abstract congruence closures presented by convergent D-rules and C-rules;
 - certified congruence graphs and undirected graph connectivity; and
 - `unsatisfiable_of_congruence_graph_conflict`, proving that a graph path
   between the two sides of an asserted disequality makes the formula

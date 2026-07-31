@@ -4,5 +4,7 @@ import EufItpLean.Syntax
 import EufItpLean.Color
 import EufItpLean.Semantics
 import EufItpLean.Interpolation
+import EufItpLean.EquationalTheory
 import EufItpLean.CongruenceGraph
+import EufItpLean.AbstractCongruenceClosure
 import EufItpLean.Examples
