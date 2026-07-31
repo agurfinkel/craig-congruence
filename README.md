@@ -17,6 +17,8 @@ The current formalization provides:
   invariant for clausal proofs;
 - interpolation folds over explicitly colored resolution chains and builds
   clause annotations incrementally alongside an LRAT trace;
+- direct shared-interface extraction certificates for colorable clausal
+  proofs, together with a trace-level ownership and dependency restriction;
 - a sound fixed-signature EUF interpolation extractor producing equality Horn
   clauses from alternating A/B congruence-closure certificates;
 - equality and disequality literals, interpreted conjunctively;
