@@ -10,4 +10,5 @@ import EufItpLean.CongruenceGraph
 import EufItpLean.AbstractCongruenceClosure
 import EufItpLean.InterpolationProcedure
 import EufItpLean.ClausalInterpolation
+import EufItpLean.ClausalProof
 import EufItpLean.Examples
