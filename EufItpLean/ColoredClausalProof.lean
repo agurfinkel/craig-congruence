@@ -1,4 +1,4 @@
-import EufItpLean.ClausalProof
+import EufItpLean.HornToCNF
 
 namespace EUF
 
@@ -140,6 +140,45 @@ def ofTheoryLemma (lemma : TheoryLemma colored) :
 
 end ClausePartition
 
+/-- The occurrence-coloring facts needed to transport falsifying assignments
+through one resolution step. On the pivot's owning side, the pivot value
+selects which parent is falsified. On the other side, both parent projections
+are falsified because the pivot has no occurrence there. -/
+structure PartitionedResolutionStep (colored : ColoredSignature 2)
+    {left right resolvent : Clause colored.toSignature}
+    (step : ResolutionStep left right resolvent)
+    (leftPartition : ClausePartition colored left)
+    (rightPartition : ClausePartition colored right)
+    (resolventPartition : ClausePartition colored resolvent) where
+  pivotOwner : Fin 2
+  pivot_available : step.pivot.AvailableIn colored pivotOwner
+  owner_left_of_not_pivot :
+    ∀ interpretation : Interpretation colored.toSignature,
+      Satisfies interpretation
+        (resolventPartition.toColoredClause.falsifyingPart pivotOwner) →
+      ¬SatisfiesLiteral interpretation step.pivot →
+      Satisfies interpretation
+        (leftPartition.toColoredClause.falsifyingPart pivotOwner)
+  owner_right_of_pivot :
+    ∀ interpretation : Interpretation colored.toSignature,
+      Satisfies interpretation
+        (resolventPartition.toColoredClause.falsifyingPart pivotOwner) →
+      SatisfiesLiteral interpretation step.pivot →
+      Satisfies interpretation
+        (rightPartition.toColoredClause.falsifyingPart pivotOwner)
+  other_left :
+    ∀ interpretation : Interpretation colored.toSignature,
+      Satisfies interpretation
+        (resolventPartition.toColoredClause.falsifyingPart pivotOwner.rev) →
+      Satisfies interpretation
+        (leftPartition.toColoredClause.falsifyingPart pivotOwner.rev)
+  other_right :
+    ∀ interpretation : Interpretation colored.toSignature,
+      Satisfies interpretation
+        (resolventPartition.toColoredClause.falsifyingPart pivotOwner.rev) →
+      Satisfies interpretation
+        (rightPartition.toColoredClause.falsifyingPart pivotOwner.rev)
+
 /-- A partial interpolant at an arbitrary proof clause. Falsifying the clause
 part owned by `side`, together with that input partition, entails the shared
 summary. The summary similarly refutes the other input partition when its
@@ -151,18 +190,18 @@ structure IsPartialInterpolantAt (inputs : ColoredCNF colored)
     (clause : Clause colored.toSignature)
     (partition : ClausePartition colored clause)
     (side : Fin 2)
-    (interpolant : EqualityHornFormula colored.toSignature) : Prop where
+    (interpolant : CNF colored.toSignature) : Prop where
   interpolant_shared :
-    EqualityHornFormula.IsShared colored 0 interpolant
+    CNF.IsShared colored 0 interpolant
   side_entails :
     ∀ interpretation : Interpretation colored.toSignature,
       (inputs.part side).Satisfied interpretation →
       Satisfies interpretation
         (partition.toColoredClause.falsifyingPart side) →
-      SatisfiesEqualityHornFormula interpretation interpolant
+      interpolant.Satisfied interpretation
   interpolant_other_unsatisfiable :
     ¬∃ interpretation : Interpretation colored.toSignature,
-      SatisfiesEqualityHornFormula interpretation interpolant ∧
+      interpolant.Satisfied interpretation ∧
       (inputs.part side.rev).Satisfied interpretation ∧
       Satisfies interpretation
         (partition.toColoredClause.falsifyingPart side.rev)
@@ -171,17 +210,17 @@ structure IsPartialInterpolantAt (inputs : ColoredCNF colored)
 clausal EUF inputs, indexed by the side whose contribution is summarized. -/
 structure IsClausalInterpolantAt (inputs : ColoredCNF colored)
     (side : Fin 2)
-    (interpolant : EqualityHornFormula colored.toSignature) : Prop where
+    (interpolant : CNF colored.toSignature) : Prop where
   inputs_unsatisfiable : inputs.Unsatisfiable
   interpolant_shared :
-    EqualityHornFormula.IsShared colored 0 interpolant
+    CNF.IsShared colored 0 interpolant
   side_entails :
     ∀ interpretation : Interpretation colored.toSignature,
       (inputs.part side).Satisfied interpretation →
-      SatisfiesEqualityHornFormula interpretation interpolant
+      interpolant.Satisfied interpretation
   interpolant_other_unsatisfiable :
     ¬∃ interpretation : Interpretation colored.toSignature,
-      SatisfiesEqualityHornFormula interpretation interpolant ∧
+      interpolant.Satisfied interpretation ∧
       (inputs.part side.rev).Satisfied interpretation
 
 namespace TheoryLemmaAnnotation
@@ -194,16 +233,22 @@ def toPartialInterpolant (annotation : TheoryLemmaAnnotation colored)
     IsPartialInterpolantAt inputs
       annotation.lemma.toColoredClause.literals
       (ClausePartition.ofTheoryLemma annotation.lemma)
-      annotation.side annotation.interpolant where
-  interpolant_shared := annotation.correct.interpolant_shared
+      annotation.side annotation.interpolant.toCNF where
+  interpolant_shared := EqualityHornFormula.toCNF_isShared
+    annotation.correct.interpolant_shared
   side_entails := by
     intro interpretation _ satisfiesFalsifyingPart
-    exact annotation.correct.side_entails interpretation
-      satisfiesFalsifyingPart
+    exact (EqualityHornFormula.satisfies_toCNF_iff
+      interpretation annotation.interpolant).mpr
+        (annotation.correct.side_entails interpretation
+          satisfiesFalsifyingPart)
   interpolant_other_unsatisfiable := by
     rintro ⟨interpretation, satisfiesInterpolant, _, satisfiesFalsifyingPart⟩
     exact annotation.correct.interpolant_other_unsatisfiable
-      ⟨interpretation, satisfiesInterpolant, satisfiesFalsifyingPart⟩
+      ⟨interpretation,
+        (EqualityHornFormula.satisfies_toCNF_iff
+          interpretation annotation.interpolant).mp satisfiesInterpolant,
+        satisfiesFalsifyingPart⟩
 
 end TheoryLemmaAnnotation
 
@@ -218,8 +263,8 @@ def ofInputOnSide
     IsPartialInterpolantAt inputs clause
       (ClausePartition.owned side clause
         (inputs.part_color side clause member))
-      side EqualityHornFormula.falsum where
-  interpolant_shared := EqualityHornFormula.isShared_falsum colored 0
+      side CNF.falsum where
+  interpolant_shared := CNF.isShared_falsum colored 0
   side_entails := by
     intro interpretation satisfiesInputs satisfiesFalsification
     exact False.elim (Clause.contradicts_falsifying_formula
@@ -227,8 +272,7 @@ def ofInputOnSide
       (by simpa using satisfiesFalsification))
   interpolant_other_unsatisfiable := by
     rintro ⟨interpretation, satisfiesFalsum, _, _⟩
-    exact EqualityHornFormula.not_satisfies_falsum interpretation
-      satisfiesFalsum
+    exact CNF.not_satisfied_falsum interpretation satisfiesFalsum
 
 /-- An input clause owned by the opposite side has partial interpolant `true`.
 The opposite input clause contradicts its own falsifying assignment. -/
@@ -240,10 +284,10 @@ def ofInputOnOtherSide
       (ClausePartition.owned owner clause
         (inputs.part_color owner clause member))
       owner.rev [] where
-  interpolant_shared := EqualityHornFormula.isShared_nil colored 0
+  interpolant_shared := CNF.isShared_nil colored 0
   side_entails := by
     intro interpretation _ _
-    exact EqualityHornFormula.satisfies_nil interpretation
+    exact CNF.satisfied_nil interpretation
   interpolant_other_unsatisfiable := by
     rintro ⟨interpretation, _, satisfiesInputs, satisfiesFalsification⟩
     have satisfiesOwner : (inputs.part owner).Satisfied interpretation := by
@@ -252,12 +296,109 @@ def ofInputOnOtherSide
       (satisfiesOwner clause member)
     simpa using satisfiesFalsification
 
+/-- Resolution on a pivot owned by the summarized side combines partial
+interpolants by disjunction. `CNF.disjoin` keeps the result in CNF. -/
+def resolveOnSide
+    {colored : ColoredSignature 2} {inputs : ColoredCNF colored}
+    {left right resolvent : Clause colored.toSignature}
+    {leftPartition : ClausePartition colored left}
+    {rightPartition : ClausePartition colored right}
+    {resolventPartition : ClausePartition colored resolvent}
+    {step : ResolutionStep left right resolvent}
+    (projection : PartitionedResolutionStep colored step leftPartition
+      rightPartition resolventPartition)
+    (side : Fin 2) (owner : projection.pivotOwner = side)
+    {leftInterpolant rightInterpolant : CNF colored.toSignature}
+    (leftInvariant : IsPartialInterpolantAt inputs left leftPartition
+      side leftInterpolant)
+    (rightInvariant : IsPartialInterpolantAt inputs right rightPartition
+      side rightInterpolant) :
+    IsPartialInterpolantAt inputs resolvent resolventPartition side
+      (CNF.disjoin leftInterpolant rightInterpolant) where
+  interpolant_shared := CNF.isShared_disjoin
+    leftInvariant.interpolant_shared rightInvariant.interpolant_shared
+  side_entails := by
+    intro interpretation satisfiesInputs satisfiesResolvent
+    apply (CNF.satisfied_disjoin_iff interpretation _ _).mpr
+    by_cases satisfiesPivot : SatisfiesLiteral interpretation step.pivot
+    · right
+      apply rightInvariant.side_entails interpretation satisfiesInputs
+      simpa [owner] using
+        projection.owner_right_of_pivot interpretation
+          (by simpa [owner] using satisfiesResolvent) satisfiesPivot
+    · left
+      apply leftInvariant.side_entails interpretation satisfiesInputs
+      simpa [owner] using
+        projection.owner_left_of_not_pivot interpretation
+          (by simpa [owner] using satisfiesResolvent) satisfiesPivot
+  interpolant_other_unsatisfiable := by
+    rintro ⟨interpretation, satisfiesInterpolant, satisfiesInputs,
+      satisfiesResolvent⟩
+    rcases (CNF.satisfied_disjoin_iff interpretation _ _).mp
+      satisfiesInterpolant with satisfiesLeft | satisfiesRight
+    · apply leftInvariant.interpolant_other_unsatisfiable
+      refine ⟨interpretation, satisfiesLeft, satisfiesInputs, ?_⟩
+      have := projection.other_left interpretation
+      simpa [owner] using this (by simpa [owner] using satisfiesResolvent)
+    · apply rightInvariant.interpolant_other_unsatisfiable
+      refine ⟨interpretation, satisfiesRight, satisfiesInputs, ?_⟩
+      have := projection.other_right interpretation
+      simpa [owner] using this (by simpa [owner] using satisfiesResolvent)
+
+/-- Resolution on a pivot owned by the opposite side combines partial
+interpolants by conjunction, represented by CNF append. -/
+def resolveOnOtherSide
+    {colored : ColoredSignature 2} {inputs : ColoredCNF colored}
+    {left right resolvent : Clause colored.toSignature}
+    {leftPartition : ClausePartition colored left}
+    {rightPartition : ClausePartition colored right}
+    {resolventPartition : ClausePartition colored resolvent}
+    {step : ResolutionStep left right resolvent}
+    (projection : PartitionedResolutionStep colored step leftPartition
+      rightPartition resolventPartition)
+    (side : Fin 2) (owner : projection.pivotOwner = side.rev)
+    {leftInterpolant rightInterpolant : CNF colored.toSignature}
+    (leftInvariant : IsPartialInterpolantAt inputs left leftPartition
+      side leftInterpolant)
+    (rightInvariant : IsPartialInterpolantAt inputs right rightPartition
+      side rightInterpolant) :
+    IsPartialInterpolantAt inputs resolvent resolventPartition side
+      (leftInterpolant ++ rightInterpolant) where
+  interpolant_shared := (CNF.isShared_append colored 0 _ _).mpr
+    ⟨leftInvariant.interpolant_shared, rightInvariant.interpolant_shared⟩
+  side_entails := by
+    intro interpretation satisfiesInputs satisfiesResolvent
+    apply (CNF.satisfied_append_iff interpretation _ _).mpr
+    constructor
+    · apply leftInvariant.side_entails interpretation satisfiesInputs
+      have := projection.other_left interpretation
+      simpa [owner] using this (by simpa [owner] using satisfiesResolvent)
+    · apply rightInvariant.side_entails interpretation satisfiesInputs
+      have := projection.other_right interpretation
+      simpa [owner] using this (by simpa [owner] using satisfiesResolvent)
+  interpolant_other_unsatisfiable := by
+    rintro ⟨interpretation, satisfiesInterpolant, satisfiesInputs,
+      satisfiesResolvent⟩
+    have interpolantParts :=
+      (CNF.satisfied_append_iff interpretation _ _).mp satisfiesInterpolant
+    by_cases satisfiesPivot : SatisfiesLiteral interpretation step.pivot
+    · apply rightInvariant.interpolant_other_unsatisfiable
+      refine ⟨interpretation, interpolantParts.2, satisfiesInputs, ?_⟩
+      simpa [owner] using
+        projection.owner_right_of_pivot interpretation
+          (by simpa [owner] using satisfiesResolvent) satisfiesPivot
+    · apply leftInvariant.interpolant_other_unsatisfiable
+      refine ⟨interpretation, interpolantParts.1, satisfiesInputs, ?_⟩
+      simpa [owner] using
+        projection.owner_left_of_not_pivot interpretation
+          (by simpa [owner] using satisfiesResolvent) satisfiesPivot
+
 /-- At a refutation's empty clause, the partial-interpolant invariant becomes
 the final clausal interpolation theorem. -/
 def atContradiction
     {colored : ColoredSignature 2} {inputs : ColoredCNF colored}
     {side : Fin 2}
-    {interpolant : EqualityHornFormula colored.toSignature}
+    {interpolant : CNF colored.toSignature}
     (invariant : IsPartialInterpolantAt inputs []
       (ClausePartition.empty colored) side interpolant)
     (inputsUnsatisfiable : inputs.Unsatisfiable) :

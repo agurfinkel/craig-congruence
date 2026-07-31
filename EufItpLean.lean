@@ -11,5 +11,6 @@ import EufItpLean.AbstractCongruenceClosure
 import EufItpLean.InterpolationProcedure
 import EufItpLean.ClausalInterpolation
 import EufItpLean.ClausalProof
+import EufItpLean.HornToCNF
 import EufItpLean.ColoredClausalProof
 import EufItpLean.Examples

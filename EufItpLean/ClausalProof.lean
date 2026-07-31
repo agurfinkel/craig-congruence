@@ -143,6 +143,16 @@ def Satisfiable (cnf : CNF signature) : Prop :=
 def Unsatisfiable (cnf : CNF signature) : Prop :=
   ¬cnf.Satisfiable
 
+/-- The false CNF, consisting of the empty clause. -/
+def falsum : CNF signature := [[]]
+
+@[simp]
+theorem not_satisfied_falsum (interpretation : Interpretation signature) :
+    ¬Satisfied interpretation (falsum : CNF signature) := by
+  intro satisfies
+  exact Clause.not_satisfied_nil interpretation
+    (satisfies [] (by simp [falsum]))
+
 @[simp]
 theorem satisfied_nil (interpretation : Interpretation signature) :
     Satisfied interpretation ([] : CNF signature) := by
@@ -162,6 +172,49 @@ theorem satisfied_append_iff (interpretation : Interpretation signature)
     rcases List.mem_append.mp member with member | member
     · exact satisfiesLeft clause member
     · exact satisfiesRight clause member
+
+/-- CNF representation of disjunction, obtained by distributing every clause
+of the left CNF over every clause of the right CNF. -/
+def disjoin (left right : CNF signature) : CNF signature :=
+  left.flatMap fun leftClause =>
+    right.map fun rightClause => leftClause ++ rightClause
+
+@[simp]
+theorem satisfied_disjoin_iff (interpretation : Interpretation signature)
+    (left right : CNF signature) :
+    Satisfied interpretation (disjoin left right) ↔
+      Satisfied interpretation left ∨ Satisfied interpretation right := by
+  classical
+  constructor
+  · intro satisfiesDisjunction
+    by_cases satisfiesLeft : Satisfied interpretation left
+    · exact Or.inl satisfiesLeft
+    · right
+      have counterexample :
+          ∃ clause, clause ∈ left ∧ ¬clause.Satisfied interpretation := by
+        exact Classical.byContradiction fun noCounterexample =>
+          satisfiesLeft fun clause member =>
+            Classical.byContradiction fun notSatisfied =>
+              noCounterexample ⟨clause, member, notSatisfied⟩
+      obtain ⟨leftClause, leftMember, leftUnsatisfied⟩ := counterexample
+      intro rightClause rightMember
+      have combined := satisfiesDisjunction (leftClause ++ rightClause) (by
+        simp only [disjoin, List.mem_flatMap, List.mem_map]
+        exact ⟨leftClause, leftMember,
+          ⟨rightClause, rightMember, rfl⟩⟩)
+      rcases (Clause.satisfied_append_iff interpretation _ _).mp combined with
+        satisfiesLeftClause | satisfiesRightClause
+      · exact False.elim (leftUnsatisfied satisfiesLeftClause)
+      · exact satisfiesRightClause
+  · rintro (satisfiesLeft | satisfiesRight) clause member
+    · simp only [disjoin, List.mem_flatMap, List.mem_map] at member
+      obtain ⟨leftClause, leftMember, rightClause, rightMember, rfl⟩ := member
+      exact (Clause.satisfied_append_iff interpretation _ _).mpr
+        (Or.inl (satisfiesLeft leftClause leftMember))
+    · simp only [disjoin, List.mem_flatMap, List.mem_map] at member
+      obtain ⟨leftClause, leftMember, rightClause, rightMember, rfl⟩ := member
+      exact (Clause.satisfied_append_iff interpretation _ _).mpr
+        (Or.inr (satisfiesRight rightClause rightMember))
 
 end CNF
 
