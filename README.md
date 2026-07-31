@@ -6,6 +6,7 @@ A Lean 4 development for proofs about equality with uninterpreted functions
 The current formalization provides:
 
 - arity-indexed function signatures and ground terms;
+- finite colored signatures, colorability, and local/shared formula colors;
 - equality and disequality literals, interpreted conjunctively;
 - standard EUF interpretations and satisfaction;
 - equality derivations closed under reflexivity, symmetry, transitivity, and
