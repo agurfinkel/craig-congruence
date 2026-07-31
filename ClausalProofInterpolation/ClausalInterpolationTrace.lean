@@ -12,31 +12,31 @@ sound clausal interpolant.
 namespace EUF
 
 /-- Everything established about one clause while traversing a colored proof. -/
-structure ClauseAnnotation (inputs : ColoredCNF colored) (side : Fin 2)
-    (clause : Clause colored.toSignature) where
-  partition : ClausePartition colored clause
-  interpolant : CNF colored.toSignature
+structure ClauseAnnotation (inputs : ColoredCNF sig) (side : Fin 2)
+    (clause : Clause sig.toSignature) where
+  partition : ClausePartition sig clause
+  interpolant : CNF sig.toSignature
   correct : IsPartialInterpolantAt inputs clause partition side interpolant
 
 /-- Partial-interpolant annotations for every clause already present in the
 ordered LRAT database. -/
-abbrev ClauseAnnotationDatabase (inputs : ColoredCNF colored) (side : Fin 2)
-    (clauses : CNF colored.toSignature) :=
+abbrev ClauseAnnotationDatabase (inputs : ColoredCNF sig) (side : Fin 2)
+    (clauses : CNF sig.toSignature) :=
   ∀ index : Fin clauses.length,
     ClauseAnnotation inputs side (clauses.get index)
 
 namespace ClauseAnnotationDatabase
 
-def empty (inputs : ColoredCNF colored) (side : Fin 2) :
+def empty (inputs : ColoredCNF sig) (side : Fin 2) :
     ClauseAnnotationDatabase inputs side [] :=
   fun index => nomatch index
 
 /-- Extend an annotation database in the same snoc order as `ClauseTrace`. -/
 noncomputable def snoc
-    {colored : ColoredSignature 2} {inputs : ColoredCNF colored}
-    {side : Fin 2} {clauses : CNF colored.toSignature}
+    {sig : ColoredSignature 2} {inputs : ColoredCNF sig}
+    {side : Fin 2} {clauses : CNF sig.toSignature}
     (database : ClauseAnnotationDatabase inputs side clauses)
-    {clause : Clause colored.toSignature}
+    {clause : Clause sig.toSignature}
     (annotation : ClauseAnnotation inputs side clause) :
     ClauseAnnotationDatabase inputs side (clauses ++ [clause]) := by
   intro index
@@ -65,8 +65,8 @@ inductive PivotLocation (owner side : Fin 2) : Type where
 
 namespace ClauseAnnotation
 
-def cast {colored : ColoredSignature 2} {inputs : ColoredCNF colored}
-    {side : Fin 2} {left right : Clause colored.toSignature}
+def cast {sig : ColoredSignature 2} {inputs : ColoredCNF sig}
+    {side : Fin 2} {left right : Clause sig.toSignature}
     (equal : left = right)
     (annotation : ClauseAnnotation inputs side left) :
     ClauseAnnotation inputs side right :=
@@ -74,8 +74,8 @@ def cast {colored : ColoredSignature 2} {inputs : ColoredCNF colored}
 
 @[simp]
 theorem cast_interpolant
-    {colored : ColoredSignature 2} {inputs : ColoredCNF colored}
-    {side : Fin 2} {left right : Clause colored.toSignature}
+    {sig : ColoredSignature 2} {inputs : ColoredCNF sig}
+    {side : Fin 2} {left right : Clause sig.toSignature}
     (equal : left = right)
     (annotation : ClauseAnnotation inputs side left) :
     (annotation.cast equal).interpolant = annotation.interpolant := by
@@ -84,8 +84,8 @@ theorem cast_interpolant
 
 /-- Annotation of an input clause owned by the summarized side. -/
 def inputOnSide
-    {colored : ColoredSignature 2} {inputs : ColoredCNF colored}
-    {owner side : Fin 2} {clause : Clause colored.toSignature}
+    {sig : ColoredSignature 2} {inputs : ColoredCNF sig}
+    {owner side : Fin 2} {clause : Clause sig.toSignature}
     (member : clause ∈ inputs.part owner) (equal : owner = side) :
     ClauseAnnotation inputs side clause := by
   subst side
@@ -98,8 +98,8 @@ def inputOnSide
 /-- Annotation of an input clause owned by the side opposite the summarized
 one. -/
 def inputOnOtherSide
-    {colored : ColoredSignature 2} {inputs : ColoredCNF colored}
-    {owner side : Fin 2} {clause : Clause colored.toSignature}
+    {sig : ColoredSignature 2} {inputs : ColoredCNF sig}
+    {owner side : Fin 2} {clause : Clause sig.toSignature}
     (member : clause ∈ inputs.part owner) (equal : owner = side.rev) :
     ClauseAnnotation inputs side clause := by
   have reversed : owner.rev = side := by
@@ -115,8 +115,8 @@ def inputOnOtherSide
 /-- Embed a theory leaf whose EUF annotation has the chosen global
 orientation. -/
 def theory
-    {colored : ColoredSignature 2} {inputs : ColoredCNF colored}
-    {side : Fin 2} (annotation : TheoryLemmaAnnotation colored)
+    {sig : ColoredSignature 2} {inputs : ColoredCNF sig}
+    {side : Fin 2} (annotation : TheoryLemmaAnnotation sig)
     (equal : annotation.side = side) :
     ClauseAnnotation inputs side
       annotation.lemma.toColoredClause.literals := by
@@ -129,16 +129,16 @@ def theory
 /-- The resolution combination with its result partition fixed in the return
 type. This dependent form is convenient when folding a chain. -/
 def resolveAt
-    {colored : ColoredSignature 2} {inputs : ColoredCNF colored}
-    {side : Fin 2} {left right resolvent : Clause colored.toSignature}
+    {sig : ColoredSignature 2} {inputs : ColoredCNF sig}
+    {side : Fin 2} {left right resolvent : Clause sig.toSignature}
     (leftAnnotation : ClauseAnnotation inputs side left)
     (rightAnnotation : ClauseAnnotation inputs side right)
-    (resolventPartition : ClausePartition colored resolvent)
+    (resolventPartition : ClausePartition sig resolvent)
     {step : ResolutionStep left right resolvent}
-    (projection : PartitionedResolutionStep colored step
+    (projection : PartitionedResolutionStep sig step
       leftAnnotation.partition rightAnnotation.partition resolventPartition)
     (location : PivotLocation projection.pivotOwner side) :
-    { interpolant : CNF colored.toSignature //
+    { interpolant : CNF sig.toSignature //
       IsPartialInterpolantAt inputs resolvent resolventPartition side
         interpolant } :=
   match location with
@@ -154,13 +154,13 @@ def resolveAt
 /-- Combine the annotations of a single explicitly partitioned resolution
 step. -/
 def resolve
-    {colored : ColoredSignature 2} {inputs : ColoredCNF colored}
-    {side : Fin 2} {left right resolvent : Clause colored.toSignature}
+    {sig : ColoredSignature 2} {inputs : ColoredCNF sig}
+    {side : Fin 2} {left right resolvent : Clause sig.toSignature}
     (leftAnnotation : ClauseAnnotation inputs side left)
     (rightAnnotation : ClauseAnnotation inputs side right)
-    (resolventPartition : ClausePartition colored resolvent)
+    (resolventPartition : ClausePartition sig resolvent)
     {step : ResolutionStep left right resolvent}
-    (projection : PartitionedResolutionStep colored step
+    (projection : PartitionedResolutionStep sig step
       leftAnnotation.partition rightAnnotation.partition resolventPartition)
     (location : PivotLocation projection.pivotOwner side) :
     ClauseAnnotation inputs side resolvent := by
@@ -174,13 +174,13 @@ end ClauseAnnotation
 ordinary clause relation says that `stronger` implies `weaker`; this field
 transports the two falsifying projections used by interpolation. -/
 structure PartitionedSubsumption
-    {colored : ColoredSignature 2}
-    {stronger weaker : Clause colored.toSignature}
+    {sig : ColoredSignature 2}
+    {stronger weaker : Clause sig.toSignature}
     (subsumes : Clause.Subsumes stronger weaker)
-    (strongerPartition : ClausePartition colored stronger)
-    (weakerPartition : ClausePartition colored weaker) where
+    (strongerPartition : ClausePartition sig stronger)
+    (weakerPartition : ClausePartition sig weaker) where
   falsifyingPart :
-    ∀ side (interpretation : Interpretation colored.toSignature),
+    ∀ side (interpretation : Interpretation sig.toSignature),
       Satisfies interpretation
         (weakerPartition.toColoredClause.falsifyingPart side) →
       Satisfies interpretation
@@ -191,10 +191,10 @@ namespace ClauseAnnotation
 /-- Transport a partial interpolant from a subsuming chain result to the
 possibly weaker learned clause. -/
 def ofSubsumption
-    {colored : ColoredSignature 2} {inputs : ColoredCNF colored}
-    {side : Fin 2} {stronger weaker : Clause colored.toSignature}
+    {sig : ColoredSignature 2} {inputs : ColoredCNF sig}
+    {side : Fin 2} {stronger weaker : Clause sig.toSignature}
     (strongerAnnotation : ClauseAnnotation inputs side stronger)
-    (weakerPartition : ClausePartition colored weaker)
+    (weakerPartition : ClausePartition sig weaker)
     {subsumes : Clause.Subsumes stronger weaker}
     (partitioned : PartitionedSubsumption subsumes
       strongerAnnotation.partition weakerPartition) :
@@ -222,27 +222,27 @@ the occurrence partition of every intermediate resolvent and the ownership
 choice for every pivot. Parent partitions come from the earlier-clause
 annotation database. -/
 inductive ResolutionChainPartitioning
-    {colored : ColoredSignature 2} {inputs : ColoredCNF colored}
-    {side : Fin 2} {available : CNF colored.toSignature}
+    {sig : ColoredSignature 2} {inputs : ColoredCNF sig}
+    {side : Fin 2} {available : CNF sig.toSignature}
     (database : ClauseAnnotationDatabase inputs side available) :
-    {anchor result : Clause colored.toSignature} →
+    {anchor result : Clause sig.toSignature} →
     (chain : ResolutionChain available anchor result) →
-    ClausePartition colored anchor →
-    ClausePartition colored result → Type 1 where
-  | start (partition : ClausePartition colored anchor) :
+    ClausePartition sig anchor →
+    ClausePartition sig result → Type 1 where
+  | start (partition : ClausePartition sig anchor) :
       ResolutionChainPartitioning database (.start :
         ResolutionChain available anchor anchor) partition partition
   | resolve
       {chain : ResolutionChain available anchor current}
-      {anchorPartition : ClausePartition colored anchor}
-      {currentPartition : ClausePartition colored current}
+      {anchorPartition : ClausePartition sig anchor}
+      {currentPartition : ClausePartition sig current}
       (previous : ResolutionChainPartitioning database chain
         anchorPartition currentPartition)
       (parent : Fin available.length)
-      {next : Clause colored.toSignature}
+      {next : Clause sig.toSignature}
       {step : ResolutionStep current (available.get parent) next}
-      (nextPartition : ClausePartition colored next)
-      (projection : PartitionedResolutionStep colored step currentPartition
+      (nextPartition : ClausePartition sig next)
+      (projection : PartitionedResolutionStep sig step currentPartition
         (database parent).partition nextPartition)
       (location : PivotLocation projection.pivotOwner side) :
       ResolutionChainPartitioning database
@@ -252,19 +252,19 @@ namespace ResolutionChainPartitioning
 
 /-- Fold binary partial-interpolant construction over the explicit chain. -/
 noncomputable def interpolate
-    {colored : ColoredSignature 2} {inputs : ColoredCNF colored}
-    {side : Fin 2} {available : CNF colored.toSignature}
+    {sig : ColoredSignature 2} {inputs : ColoredCNF sig}
+    {side : Fin 2} {available : CNF sig.toSignature}
     {database : ClauseAnnotationDatabase inputs side available}
-    {anchor result : Clause colored.toSignature}
+    {anchor result : Clause sig.toSignature}
     {chain : ResolutionChain available anchor result}
-    {anchorPartition : ClausePartition colored anchor}
-    {resultPartition : ClausePartition colored result}
+    {anchorPartition : ClausePartition sig anchor}
+    {resultPartition : ClausePartition sig result}
     (partitioning : ResolutionChainPartitioning database chain
       anchorPartition resultPartition)
-    (anchorInterpolant : CNF colored.toSignature)
+    (anchorInterpolant : CNF sig.toSignature)
     (anchorCorrect : IsPartialInterpolantAt inputs anchor anchorPartition
       side anchorInterpolant) :
-    { interpolant : CNF colored.toSignature //
+    { interpolant : CNF sig.toSignature //
       IsPartialInterpolantAt inputs result resultPartition side interpolant } := by
   induction partitioning with
   | start anchorPart =>
@@ -282,15 +282,15 @@ end ResolutionChainPartitioning
 /-- Interpolation information for the resolution chain inside one learned
 clause's LRAT-like justification. -/
 structure InterpolatedChainJustification
-    {colored : ColoredSignature 2} {inputs : ColoredCNF colored}
-    {side : Fin 2} {available : CNF colored.toSignature}
+    {sig : ColoredSignature 2} {inputs : ColoredCNF sig}
+    {side : Fin 2} {available : CNF sig.toSignature}
     (database : ClauseAnnotationDatabase inputs side available)
-    {derived : Clause colored.toSignature}
+    {derived : Clause sig.toSignature}
     (justification : ChainJustification available derived) where
-  resolventPartition : ClausePartition colored justification.resolvent
+  resolventPartition : ClausePartition sig justification.resolvent
   partitioning : ResolutionChainPartitioning database justification.chain
     (database justification.anchor).partition resolventPartition
-  derivedPartition : ClausePartition colored derived
+  derivedPartition : ClausePartition sig derived
   partitionedSubsumption : PartitionedSubsumption justification.subsumes
     resolventPartition derivedPartition
 
@@ -299,10 +299,10 @@ namespace InterpolatedChainJustification
 /-- Compute the annotation of the chain's exact final resolvent. The learned
 clause's final subsumption step is handled separately. -/
 noncomputable def resolventAnnotation
-    {colored : ColoredSignature 2} {inputs : ColoredCNF colored}
-    {side : Fin 2} {available : CNF colored.toSignature}
+    {sig : ColoredSignature 2} {inputs : ColoredCNF sig}
+    {side : Fin 2} {available : CNF sig.toSignature}
     {database : ClauseAnnotationDatabase inputs side available}
-    {derived : Clause colored.toSignature}
+    {derived : Clause sig.toSignature}
     {justification : ChainJustification available derived}
     (interpolation : InterpolatedChainJustification database justification) :
     ClauseAnnotation inputs side justification.resolvent := by
@@ -315,10 +315,10 @@ noncomputable def resolventAnnotation
 /-- Compute the annotation of the learned clause, including the final
 subsumption step recorded by its LRAT-like justification. -/
 noncomputable def derivedAnnotation
-    {colored : ColoredSignature 2} {inputs : ColoredCNF colored}
-    {side : Fin 2} {available : CNF colored.toSignature}
+    {sig : ColoredSignature 2} {inputs : ColoredCNF sig}
+    {side : Fin 2} {available : CNF sig.toSignature}
     {database : ClauseAnnotationDatabase inputs side available}
-    {derived : Clause colored.toSignature}
+    {derived : Clause sig.toSignature}
     {justification : ChainJustification available derived}
     (interpolation : InterpolatedChainJustification database justification) :
     ClauseAnnotation inputs side derived :=
@@ -331,29 +331,29 @@ end InterpolatedChainJustification
 snoc-ordered LRAT trace. Leaf annotations use the input/theory constructors;
 derived annotations are computed from their explicit chain witnesses. -/
 inductive ClauseTraceInterpolation
-    {colored : ColoredSignature 2} (inputs : ColoredCNF colored)
+    {sig : ColoredSignature 2} (inputs : ColoredCNF sig)
     (side : Fin 2) :
-    {clauses : CNF colored.toSignature} →
+    {clauses : CNF sig.toSignature} →
     (trace : ClauseTrace (ColoredProofLeaf inputs) clauses) →
     ClauseAnnotationDatabase inputs side clauses → Type 1 where
   | empty : ClauseTraceInterpolation inputs side .empty
       (ClauseAnnotationDatabase.empty inputs side)
   | addLeaf
-      {available : CNF colored.toSignature}
+      {available : CNF sig.toSignature}
       {trace : ClauseTrace (ColoredProofLeaf inputs) available}
       {database : ClauseAnnotationDatabase inputs side available}
       (previous : ClauseTraceInterpolation inputs side trace database)
-      {clause : Clause colored.toSignature}
+      {clause : Clause sig.toSignature}
       (leaf : ColoredProofLeaf inputs clause)
       (annotation : ClauseAnnotation inputs side clause) :
       ClauseTraceInterpolation inputs side (.addLeaf trace leaf)
         (database.snoc annotation)
   | addDerived
-      {available : CNF colored.toSignature}
+      {available : CNF sig.toSignature}
       {trace : ClauseTrace (ColoredProofLeaf inputs) available}
       {database : ClauseAnnotationDatabase inputs side available}
       (previous : ClauseTraceInterpolation inputs side trace database)
-      {clause : Clause colored.toSignature}
+      {clause : Clause sig.toSignature}
       (justification : ChainJustification available clause)
       (interpolation : InterpolatedChainJustification database justification) :
       ClauseTraceInterpolation inputs side (.addDerived trace justification)
@@ -363,7 +363,7 @@ inductive ClauseTraceInterpolation
 refutation. The database annotations can be built incrementally using the
 leaf constructors and `InterpolatedChainJustification.derivedAnnotation`. -/
 structure InterpolatedClauseRefutation
-    {colored : ColoredSignature 2} (inputs : ColoredCNF colored)
+    {sig : ColoredSignature 2} (inputs : ColoredCNF sig)
     (side : Fin 2) (refutation : ColoredClauseRefutation inputs) where
   database : ClauseAnnotationDatabase inputs side refutation.clauses
   contradictionIndex : Fin refutation.clauses.length
@@ -374,7 +374,7 @@ namespace InterpolatedClauseRefutation
 /-- Package an incrementally constructed database as a completed refutation
 certificate once the empty-clause occurrence is identified. -/
 def ofTrace
-    {colored : ColoredSignature 2} {inputs : ColoredCNF colored}
+    {sig : ColoredSignature 2} {inputs : ColoredCNF sig}
     {side : Fin 2} {refutation : ColoredClauseRefutation inputs}
     {database : ClauseAnnotationDatabase inputs side refutation.clauses}
     (_construction : ClauseTraceInterpolation inputs side
@@ -388,15 +388,15 @@ def ofTrace
 
 /-- The CNF annotation stored at the explicit empty-clause occurrence. -/
 def interpolant
-    {colored : ColoredSignature 2} {inputs : ColoredCNF colored}
+    {sig : ColoredSignature 2} {inputs : ColoredCNF sig}
     {side : Fin 2} {refutation : ColoredClauseRefutation inputs}
     (certificate : InterpolatedClauseRefutation inputs side refutation) :
-    CNF colored.toSignature :=
+    CNF sig.toSignature :=
   (certificate.database certificate.contradictionIndex).interpolant
 
 /-- Soundness of the complete clausal interpolation certificate. -/
 theorem sound
-    {colored : ColoredSignature 2} {inputs : ColoredCNF colored}
+    {sig : ColoredSignature 2} {inputs : ColoredCNF sig}
     {side : Fin 2} {refutation : ColoredClauseRefutation inputs}
     (certificate : InterpolatedClauseRefutation inputs side refutation) :
     IsClausalInterpolantAt inputs side certificate.interpolant := by

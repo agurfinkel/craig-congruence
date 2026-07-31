@@ -26,9 +26,9 @@ def Satisfied (interpretation : Interpretation signature)
     (equality : Equality signature) : Prop :=
   interpretation.eval equality.left = interpretation.eval equality.right
 
-def IsShared (colored : ColoredSignature k) (boundary : Fin (k - 1))
-    (equality : Equality colored.toSignature) : Prop :=
-  equality.literal.HasColor colored (.shared boundary)
+def IsShared (sig : ColoredSignature k) (boundary : Fin (k - 1))
+  (equality : Equality sig.toSignature) : Prop :=
+  equality.literal.HasColor sig (.shared boundary)
 
 @[simp]
 theorem satisfied_iff_satisfies_literal
@@ -55,10 +55,10 @@ def Satisfied (interpretation : Interpretation signature)
     | some equality => equality.Satisfied interpretation
     | none => False
 
-def IsShared (colored : ColoredSignature k) (boundary : Fin (k - 1))
-    (clause : EqualityHornClause colored.toSignature) : Prop :=
-  (∀ equality ∈ clause.premises, equality.IsShared colored boundary) ∧
-    ∀ equality ∈ clause.conclusion, equality.IsShared colored boundary
+def IsShared (sig : ColoredSignature k) (boundary : Fin (k - 1))
+  (clause : EqualityHornClause sig.toSignature) : Prop :=
+  (∀ equality ∈ clause.premises, equality.IsShared sig boundary) ∧
+    ∀ equality ∈ clause.conclusion, equality.IsShared sig boundary
 
 end EqualityHornClause
 
@@ -100,9 +100,9 @@ def UnsatisfiableWithEqualityHornFormula
 
 namespace EqualityHornFormula
 
-def IsShared (colored : ColoredSignature k) (boundary : Fin (k - 1))
-    (formula : EqualityHornFormula colored.toSignature) : Prop :=
-  ∀ clause ∈ formula, clause.IsShared colored boundary
+def IsShared (sig : ColoredSignature k) (boundary : Fin (k - 1))
+  (formula : EqualityHornFormula sig.toSignature) : Prop :=
+  ∀ clause ∈ formula, clause.IsShared sig boundary
 
 /-- The always-false Horn formula, represented by `true ⇒ false`. -/
 def falsum : EqualityHornFormula signature :=
@@ -117,10 +117,10 @@ theorem not_satisfies_falsum
     EqualityHornClause.Satisfied]
 
 @[simp]
-theorem isShared_falsum (colored : ColoredSignature k)
+theorem isShared_falsum (sig : ColoredSignature k)
     (boundary : Fin (k - 1)) :
-    IsShared colored boundary
-      (falsum : EqualityHornFormula colored.toSignature) := by
+    IsShared sig boundary
+      (falsum : EqualityHornFormula sig.toSignature) := by
   simp [falsum, IsShared, EqualityHornClause.IsShared]
 
 @[simp]
@@ -144,18 +144,18 @@ theorem satisfies_singleton (interpretation : Interpretation signature)
     exact satisfies
 
 @[simp]
-theorem isShared_nil (colored : ColoredSignature k)
+theorem isShared_nil (sig : ColoredSignature k)
     (boundary : Fin (k - 1)) :
-    IsShared colored boundary [] := by
+    IsShared sig boundary [] := by
   intro clause member
   exact nomatch member
 
 @[simp]
-theorem isShared_singleton (colored : ColoredSignature k)
+theorem isShared_singleton (sig : ColoredSignature k)
     (boundary : Fin (k - 1))
-    (clause : EqualityHornClause colored.toSignature) :
-    IsShared colored boundary [clause] ↔
-      clause.IsShared colored boundary := by
+    (clause : EqualityHornClause sig.toSignature) :
+    IsShared sig boundary [clause] ↔
+      clause.IsShared sig boundary := by
   constructor
   · intro shared
     exact shared clause (by simp)
@@ -166,11 +166,11 @@ theorem isShared_singleton (colored : ColoredSignature k)
     exact shared
 
 @[simp]
-theorem isShared_append (colored : ColoredSignature k)
+theorem isShared_append (sig : ColoredSignature k)
     (boundary : Fin (k - 1))
-    (left right : EqualityHornFormula colored.toSignature) :
-    IsShared colored boundary (left ++ right) ↔
-      IsShared colored boundary left ∧ IsShared colored boundary right := by
+    (left right : EqualityHornFormula sig.toSignature) :
+    IsShared sig boundary (left ++ right) ↔
+      IsShared sig boundary left ∧ IsShared sig boundary right := by
   simp only [IsShared, List.mem_append]
   constructor
   · intro shared

@@ -17,29 +17,29 @@ namespace EUF
 /-- A theory lemma together with one chosen color orientation and its shared
 partial interpolant. The same semantic definition covers the conventional
 A- and B-oriented annotations. -/
-structure TheoryLemmaAnnotation (colored : ColoredSignature 2) where
-  lemma : TheoryLemma colored
+structure TheoryLemmaAnnotation (sig : ColoredSignature 2) where
+  lemma : TheoryLemma sig
   side : Fin 2
-  interpolant : EqualityHornFormula colored.toSignature
+  interpolant : EqualityHornFormula sig.toSignature
   correct : lemma.IsInterpolantAt side interpolant
 
 /-- Leaves admitted by a colored clausal proof. Input clauses retain their
 partition index. A theory leaf retains its color-indexed EUF summary rather
 than merely a proof of semantic validity. -/
-inductive ColoredProofLeaf (inputs : ColoredCNF colored) :
-    Clause colored.toSignature → Type where
+inductive ColoredProofLeaf (inputs : ColoredCNF sig) :
+    Clause sig.toSignature → Type where
   | input (side : Fin 2) (member : clause ∈ inputs.part side) :
       ColoredProofLeaf inputs clause
-  | theory (annotation : TheoryLemmaAnnotation colored) :
+  | theory (annotation : TheoryLemmaAnnotation sig) :
       ColoredProofLeaf inputs annotation.lemma.toColoredClause.literals
 
 namespace ColoredProofLeaf
 
-theorem sound {colored : ColoredSignature 2}
-    {inputs : ColoredCNF colored}
-    {clause : Clause colored.toSignature}
+theorem sound {sig : ColoredSignature 2}
+    {inputs : ColoredCNF sig}
+    {clause : Clause sig.toSignature}
     (leaf : ColoredProofLeaf inputs clause)
-    (interpretation : Interpretation colored.toSignature)
+    (interpretation : Interpretation sig.toSignature)
     (satisfiesInputs : inputs.Satisfied interpretation) :
     clause.Satisfied interpretation := by
   cases leaf with
@@ -50,13 +50,13 @@ end ColoredProofLeaf
 
 /-- An LRAT-like refutation whose leaves preserve all information needed for
 interpolation. -/
-abbrev ColoredClauseRefutation (inputs : ColoredCNF colored) :=
+abbrev ColoredClauseRefutation (inputs : ColoredCNF sig) :=
   ClauseRefutation (ColoredProofLeaf inputs)
 
 namespace ColoredClauseRefutation
 
 theorem inputs_unsatisfiable
-    {colored : ColoredSignature 2} {inputs : ColoredCNF colored}
+    {sig : ColoredSignature 2} {inputs : ColoredCNF sig}
     (refutation : ColoredClauseRefutation inputs) :
     inputs.Unsatisfiable := by
   rintro ⟨interpretation, satisfiesInputs⟩
@@ -70,9 +70,9 @@ end ColoredClauseRefutation
 
 /-- An occurrence-level partition of a derived clause. `reconstructs` permits
 the two colored parts to reorder the original literal occurrences. -/
-structure ClausePartition (colored : ColoredSignature 2)
-    (clause : Clause colored.toSignature)
-    extends ColoredClause colored where
+structure ClausePartition (sig : ColoredSignature 2)
+    (clause : Clause sig.toSignature)
+    extends ColoredClause sig where
   reconstructs : toColoredClause.literals.Perm clause
 
 namespace ClausePartition
@@ -86,8 +86,8 @@ private theorem fin_two_eq_zero_or_one (side : Fin 2) :
   exact Or.inr rfl
 
 /-- The unique empty-clause partition. -/
-def empty (colored : ColoredSignature 2) :
-    ClausePartition colored [] where
+def empty (sig : ColoredSignature 2) :
+    ClausePartition sig [] where
   part := fun _ => []
   part_color := by
     intro side literal member
@@ -96,9 +96,9 @@ def empty (colored : ColoredSignature 2) :
 
 /-- Put every occurrence of an input clause in its owning color. Shared
 literals are deliberately owned by the input partition at this leaf. -/
-def owned (owner : Fin 2) (clause : Clause colored.toSignature)
-    (clauseColor : Formula.IsColor colored owner clause) :
-    ClausePartition colored clause where
+def owned (owner : Fin 2) (clause : Clause sig.toSignature)
+    (clauseColor : Formula.IsColor sig owner clause) :
+    ClausePartition sig clause where
   part := fun side => if side = owner then clause else []
   part_color := by
     intro side literal member
@@ -115,14 +115,14 @@ def owned (owner : Fin 2) (clause : Clause colored.toSignature)
 
 @[simp]
 theorem falsifyingPart_owned_owner
-    (owner : Fin 2) (clause : Clause colored.toSignature)
-    (clauseColor : Formula.IsColor colored owner clause) :
+    (owner : Fin 2) (clause : Clause sig.toSignature)
+    (clauseColor : Formula.IsColor sig owner clause) :
     (owned owner clause clauseColor).toColoredClause.falsifyingPart owner =
       clause.map Literal.negate := by
   simp [owned, ColoredClause.falsifyingPart]
 
 theorem part_eq_nil_of_empty
-    (partition : ClausePartition colored []) (side : Fin 2) :
+    (partition : ClausePartition sig []) (side : Fin 2) :
     partition.part side = [] := by
   have concatenated : partition.part 0 ++ partition.part 1 = [] :=
     partition.reconstructs.eq_nil
@@ -135,8 +135,8 @@ theorem part_eq_nil_of_empty
 
 /-- The partition already stored by a theory lemma reconstructs its own
 underlying clause. -/
-def ofTheoryLemma (lemma : TheoryLemma colored) :
-    ClausePartition colored lemma.toColoredClause.literals where
+def ofTheoryLemma (lemma : TheoryLemma sig) :
+    ClausePartition sig lemma.toColoredClause.literals where
   toColoredClause := lemma.toColoredClause
   reconstructs := List.Perm.refl _
 
@@ -146,36 +146,36 @@ end ClausePartition
 through one resolution step. On the pivot's owning side, the pivot value
 selects which parent is falsified. On the other side, both parent projections
 are falsified because the pivot has no occurrence there. -/
-structure PartitionedResolutionStep (colored : ColoredSignature 2)
-    {left right resolvent : Clause colored.toSignature}
+structure PartitionedResolutionStep (sig : ColoredSignature 2)
+    {left right resolvent : Clause sig.toSignature}
     (step : ResolutionStep left right resolvent)
-    (leftPartition : ClausePartition colored left)
-    (rightPartition : ClausePartition colored right)
-    (resolventPartition : ClausePartition colored resolvent) where
+    (leftPartition : ClausePartition sig left)
+    (rightPartition : ClausePartition sig right)
+    (resolventPartition : ClausePartition sig resolvent) where
   pivotOwner : Fin 2
-  pivot_available : step.pivot.AvailableIn colored pivotOwner
+  pivot_available : step.pivot.AvailableIn sig pivotOwner
   owner_left_of_not_pivot :
-    ∀ interpretation : Interpretation colored.toSignature,
+    ∀ interpretation : Interpretation sig.toSignature,
       Satisfies interpretation
         (resolventPartition.toColoredClause.falsifyingPart pivotOwner) →
       ¬SatisfiesLiteral interpretation step.pivot →
       Satisfies interpretation
         (leftPartition.toColoredClause.falsifyingPart pivotOwner)
   owner_right_of_pivot :
-    ∀ interpretation : Interpretation colored.toSignature,
+    ∀ interpretation : Interpretation sig.toSignature,
       Satisfies interpretation
         (resolventPartition.toColoredClause.falsifyingPart pivotOwner) →
       SatisfiesLiteral interpretation step.pivot →
       Satisfies interpretation
         (rightPartition.toColoredClause.falsifyingPart pivotOwner)
   other_left :
-    ∀ interpretation : Interpretation colored.toSignature,
+    ∀ interpretation : Interpretation sig.toSignature,
       Satisfies interpretation
         (resolventPartition.toColoredClause.falsifyingPart pivotOwner.rev) →
       Satisfies interpretation
         (leftPartition.toColoredClause.falsifyingPart pivotOwner.rev)
   other_right :
-    ∀ interpretation : Interpretation colored.toSignature,
+    ∀ interpretation : Interpretation sig.toSignature,
       Satisfies interpretation
         (resolventPartition.toColoredClause.falsifyingPart pivotOwner.rev) →
       Satisfies interpretation
@@ -188,21 +188,21 @@ part of the proof clause is falsified.
 
 At the empty clause both falsifying parts are empty, leaving precisely the
 Craig interpolation conditions for the two input CNFs. -/
-structure IsPartialInterpolantAt (inputs : ColoredCNF colored)
-    (clause : Clause colored.toSignature)
-    (partition : ClausePartition colored clause)
+structure IsPartialInterpolantAt (inputs : ColoredCNF sig)
+    (clause : Clause sig.toSignature)
+    (partition : ClausePartition sig clause)
     (side : Fin 2)
-    (interpolant : CNF colored.toSignature) : Prop where
+    (interpolant : CNF sig.toSignature) : Prop where
   interpolant_shared :
-    CNF.IsShared colored 0 interpolant
+    CNF.IsShared sig 0 interpolant
   side_entails :
-    ∀ interpretation : Interpretation colored.toSignature,
+    ∀ interpretation : Interpretation sig.toSignature,
       (inputs.part side).Satisfied interpretation →
       Satisfies interpretation
         (partition.toColoredClause.falsifyingPart side) →
       interpolant.Satisfied interpretation
   interpolant_other_unsatisfiable :
-    ¬∃ interpretation : Interpretation colored.toSignature,
+    ¬∃ interpretation : Interpretation sig.toSignature,
       interpolant.Satisfied interpretation ∧
       (inputs.part side.rev).Satisfied interpretation ∧
       Satisfies interpretation
@@ -210,18 +210,18 @@ structure IsPartialInterpolantAt (inputs : ColoredCNF colored)
 
 /-- The final semantic specification for interpolation between two colored
 clausal EUF inputs, indexed by the side whose contribution is summarized. -/
-structure IsClausalInterpolantAt (inputs : ColoredCNF colored)
+structure IsClausalInterpolantAt (inputs : ColoredCNF sig)
     (side : Fin 2)
-    (interpolant : CNF colored.toSignature) : Prop where
+    (interpolant : CNF sig.toSignature) : Prop where
   inputs_unsatisfiable : inputs.Unsatisfiable
   interpolant_shared :
-    CNF.IsShared colored 0 interpolant
+    CNF.IsShared sig 0 interpolant
   side_entails :
-    ∀ interpretation : Interpretation colored.toSignature,
+    ∀ interpretation : Interpretation sig.toSignature,
       (inputs.part side).Satisfied interpretation →
       interpolant.Satisfied interpretation
   interpolant_other_unsatisfiable :
-    ¬∃ interpretation : Interpretation colored.toSignature,
+    ¬∃ interpretation : Interpretation sig.toSignature,
       interpolant.Satisfied interpretation ∧
       (inputs.part side.rev).Satisfied interpretation
 
@@ -230,8 +230,8 @@ namespace TheoryLemmaAnnotation
 /-- A valid theory-lemma annotation is also a valid partial interpolant at
 that leaf in any surrounding clausal problem. The surrounding input clauses
 are irrelevant to this local argument. -/
-def toPartialInterpolant (annotation : TheoryLemmaAnnotation colored)
-    (inputs : ColoredCNF colored) :
+def toPartialInterpolant (annotation : TheoryLemmaAnnotation sig)
+    (inputs : ColoredCNF sig) :
     IsPartialInterpolantAt inputs
       annotation.lemma.toColoredClause.literals
       (ClausePartition.ofTheoryLemma annotation.lemma)
@@ -259,14 +259,14 @@ namespace IsPartialInterpolantAt
 /-- An input clause owned by the summarized side has partial interpolant
 `false`: the input clause contradicts its own falsifying assignment. -/
 def ofInputOnSide
-    {colored : ColoredSignature 2} (inputs : ColoredCNF colored)
-    (side : Fin 2) (clause : Clause colored.toSignature)
+    {sig : ColoredSignature 2} (inputs : ColoredCNF sig)
+    (side : Fin 2) (clause : Clause sig.toSignature)
     (member : clause ∈ inputs.part side) :
     IsPartialInterpolantAt inputs clause
       (ClausePartition.owned side clause
         (inputs.part_color side clause member))
       side CNF.falsum where
-  interpolant_shared := CNF.isShared_falsum colored 0
+  interpolant_shared := CNF.isShared_falsum sig 0
   side_entails := by
     intro interpretation satisfiesInputs satisfiesFalsification
     exact False.elim (Clause.contradicts_falsifying_formula
@@ -279,14 +279,14 @@ def ofInputOnSide
 /-- An input clause owned by the opposite side has partial interpolant `true`.
 The opposite input clause contradicts its own falsifying assignment. -/
 def ofInputOnOtherSide
-    {colored : ColoredSignature 2} (inputs : ColoredCNF colored)
-    (owner : Fin 2) (clause : Clause colored.toSignature)
+    {sig : ColoredSignature 2} (inputs : ColoredCNF sig)
+    (owner : Fin 2) (clause : Clause sig.toSignature)
     (member : clause ∈ inputs.part owner) :
     IsPartialInterpolantAt inputs clause
       (ClausePartition.owned owner clause
         (inputs.part_color owner clause member))
       owner.rev [] where
-  interpolant_shared := CNF.isShared_nil colored 0
+  interpolant_shared := CNF.isShared_nil sig 0
   side_entails := by
     intro interpretation _ _
     exact CNF.satisfied_nil interpretation
@@ -301,16 +301,16 @@ def ofInputOnOtherSide
 /-- Resolution on a pivot owned by the summarized side combines partial
 interpolants by disjunction. `CNF.disjoin` keeps the result in CNF. -/
 def resolveOnSide
-    {colored : ColoredSignature 2} {inputs : ColoredCNF colored}
-    {left right resolvent : Clause colored.toSignature}
-    {leftPartition : ClausePartition colored left}
-    {rightPartition : ClausePartition colored right}
-    {resolventPartition : ClausePartition colored resolvent}
+    {sig : ColoredSignature 2} {inputs : ColoredCNF sig}
+    {left right resolvent : Clause sig.toSignature}
+    {leftPartition : ClausePartition sig left}
+    {rightPartition : ClausePartition sig right}
+    {resolventPartition : ClausePartition sig resolvent}
     {step : ResolutionStep left right resolvent}
-    (projection : PartitionedResolutionStep colored step leftPartition
+    (projection : PartitionedResolutionStep sig step leftPartition
       rightPartition resolventPartition)
     (side : Fin 2) (owner : projection.pivotOwner = side)
-    {leftInterpolant rightInterpolant : CNF colored.toSignature}
+    {leftInterpolant rightInterpolant : CNF sig.toSignature}
     (leftInvariant : IsPartialInterpolantAt inputs left leftPartition
       side leftInterpolant)
     (rightInvariant : IsPartialInterpolantAt inputs right rightPartition
@@ -350,23 +350,23 @@ def resolveOnSide
 /-- Resolution on a pivot owned by the opposite side combines partial
 interpolants by conjunction, represented by CNF append. -/
 def resolveOnOtherSide
-    {colored : ColoredSignature 2} {inputs : ColoredCNF colored}
-    {left right resolvent : Clause colored.toSignature}
-    {leftPartition : ClausePartition colored left}
-    {rightPartition : ClausePartition colored right}
-    {resolventPartition : ClausePartition colored resolvent}
+    {sig : ColoredSignature 2} {inputs : ColoredCNF sig}
+    {left right resolvent : Clause sig.toSignature}
+    {leftPartition : ClausePartition sig left}
+    {rightPartition : ClausePartition sig right}
+    {resolventPartition : ClausePartition sig resolvent}
     {step : ResolutionStep left right resolvent}
-    (projection : PartitionedResolutionStep colored step leftPartition
+    (projection : PartitionedResolutionStep sig step leftPartition
       rightPartition resolventPartition)
     (side : Fin 2) (owner : projection.pivotOwner = side.rev)
-    {leftInterpolant rightInterpolant : CNF colored.toSignature}
+    {leftInterpolant rightInterpolant : CNF sig.toSignature}
     (leftInvariant : IsPartialInterpolantAt inputs left leftPartition
       side leftInterpolant)
     (rightInvariant : IsPartialInterpolantAt inputs right rightPartition
       side rightInterpolant) :
     IsPartialInterpolantAt inputs resolvent resolventPartition side
       (leftInterpolant ++ rightInterpolant) where
-  interpolant_shared := (CNF.isShared_append colored 0 _ _).mpr
+  interpolant_shared := (CNF.isShared_append sig 0 _ _).mpr
     ⟨leftInvariant.interpolant_shared, rightInvariant.interpolant_shared⟩
   side_entails := by
     intro interpretation satisfiesInputs satisfiesResolvent
@@ -398,11 +398,11 @@ def resolveOnOtherSide
 /-- At a refutation's empty clause, the partial-interpolant invariant becomes
 the final clausal interpolation theorem. -/
 def atContradiction
-    {colored : ColoredSignature 2} {inputs : ColoredCNF colored}
+    {sig : ColoredSignature 2} {inputs : ColoredCNF sig}
     {side : Fin 2}
-    {interpolant : CNF colored.toSignature}
+    {interpolant : CNF sig.toSignature}
     (invariant : IsPartialInterpolantAt inputs []
-      (ClausePartition.empty colored) side interpolant)
+      (ClausePartition.empty sig) side interpolant)
     (inputsUnsatisfiable : inputs.Unsatisfiable) :
     IsClausalInterpolantAt inputs side interpolant where
   inputs_unsatisfiable := inputsUnsatisfiable
@@ -423,9 +423,9 @@ def atContradiction
 partition: reconstruction forces both parts of every empty-clause partition
 to be empty. -/
 def atAnyContradictionPartition
-    {colored : ColoredSignature 2} {inputs : ColoredCNF colored}
-    {side : Fin 2} {partition : ClausePartition colored []}
-    {interpolant : CNF colored.toSignature}
+    {sig : ColoredSignature 2} {inputs : ColoredCNF sig}
+    {side : Fin 2} {partition : ClausePartition sig []}
+    {interpolant : CNF sig.toSignature}
     (invariant : IsPartialInterpolantAt inputs [] partition side interpolant)
     (inputsUnsatisfiable : inputs.Unsatisfiable) :
     IsClausalInterpolantAt inputs side interpolant where

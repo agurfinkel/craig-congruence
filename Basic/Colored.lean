@@ -16,50 +16,50 @@ be put in its owning part because of `part_color`.
 
 Keeping the two parts separately is also exactly what is needed to negate the
 clause into the pair of conjunctive inputs used for theory interpolation. -/
-structure ColoredClause (colored : ColoredSignature 2) where
-  part : Fin 2 → Clause colored.toSignature
-  part_color : ∀ i, Formula.IsColor colored i (part i)
+structure ColoredClause (sig : ColoredSignature 2) where
+  part : Fin 2 → Clause sig.toSignature
+  part_color : ∀ partition, Formula.IsColor sig partition (part partition)
 
 namespace ColoredClause
 
 /-- The underlying disjunctive clause, forgetting ownership. -/
-def literals (clause : ColoredClause colored) : Clause colored.toSignature :=
+def literals (clause : ColoredClause sig) : Clause sig.toSignature :=
   clause.part 0 ++ clause.part 1
 
 /-- The conjunction which falsifies the literals owned by one color. -/
-def falsifyingPart (clause : ColoredClause colored) (side : Fin 2) :
-    Formula colored.toSignature :=
-  (clause.part side).map Literal.negate
+def falsifyingPart (clause : ColoredClause sig) (partition : Fin 2) :
+  Formula sig.toSignature :=
+  (clause.part partition).map Literal.negate
 
-theorem falsifyingPart_color (clause : ColoredClause colored) (side : Fin 2) :
-    Formula.IsColor colored side (clause.falsifyingPart side) := by
+theorem falsifyingPart_color (clause : ColoredClause sig) (partition : Fin 2) :
+  Formula.IsColor sig partition (clause.falsifyingPart partition) := by
   intro literal member
   simp only [falsifyingPart, List.mem_map] at member
   obtain ⟨original, originalMember, rfl⟩ := member
-  have originalColor := clause.part_color side original originalMember
-  exact ⟨(Literal.colorable_negate_iff colored original).mpr originalColor.1,
-    (Literal.availableIn_negate_iff colored side original).mpr originalColor.2⟩
+  have originalColor := clause.part_color partition original originalMember
+  exact ⟨(Literal.colorable_negate_iff sig original).mpr originalColor.1,
+    (Literal.availableIn_negate_iff sig partition original).mpr originalColor.2⟩
 
 end ColoredClause
 
 /-- A two-part clausal EUF input. Every clause in a part contains only local
 symbols of that part and symbols shared across boundary `0`. -/
-structure ColoredCNF (colored : ColoredSignature 2) where
-  part : Fin 2 → CNF colored.toSignature
-  part_color : ∀ side clause, clause ∈ part side →
-    Formula.IsColor colored side clause
+structure ColoredCNF (sig : ColoredSignature 2) where
+  part : Fin 2 → CNF sig.toSignature
+  part_color : ∀ partition clause, clause ∈ part partition →
+    Formula.IsColor sig partition clause
 
 namespace ColoredCNF
 
-def Satisfied (inputs : ColoredCNF colored)
-    (interpretation : Interpretation colored.toSignature) : Prop :=
-  ∀ side, (inputs.part side).Satisfied interpretation
+def Satisfied (inputs : ColoredCNF sig)
+  (interpretation : Interpretation sig.toSignature) : Prop :=
+  ∀ partition, (inputs.part partition).Satisfied interpretation
 
-def Satisfiable (inputs : ColoredCNF colored) : Prop :=
-  ∃ interpretation : Interpretation colored.toSignature,
+def Satisfiable (inputs : ColoredCNF sig) : Prop :=
+  ∃ interpretation : Interpretation sig.toSignature,
     inputs.Satisfied interpretation
 
-def Unsatisfiable (inputs : ColoredCNF colored) : Prop :=
+def Unsatisfiable (inputs : ColoredCNF sig) : Prop :=
   ¬inputs.Satisfiable
 
 end ColoredCNF

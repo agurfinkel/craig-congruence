@@ -110,29 +110,29 @@ end EqualityHornFormula
 
 namespace Clause
 
-def IsShared (colored : ColoredSignature k) (boundary : Fin (k - 1))
-    (clause : Clause colored.toSignature) : Prop :=
-  ∀ literal ∈ clause, literal.HasColor colored (.shared boundary)
+def IsShared (sig : ColoredSignature k) (boundary : Fin (k - 1))
+  (clause : Clause sig.toSignature) : Prop :=
+  ∀ literal ∈ clause, literal.HasColor sig (.shared boundary)
 
 end Clause
 
 namespace CNF
 
-def IsShared (colored : ColoredSignature k) (boundary : Fin (k - 1))
-    (cnf : CNF colored.toSignature) : Prop :=
-  ∀ clause ∈ cnf, clause.IsShared colored boundary
+def IsShared (sig : ColoredSignature k) (boundary : Fin (k - 1))
+  (cnf : CNF sig.toSignature) : Prop :=
+  ∀ clause ∈ cnf, clause.IsShared sig boundary
 
 @[simp]
-theorem isShared_nil (colored : ColoredSignature k)
+theorem isShared_nil (sig : ColoredSignature k)
     (boundary : Fin (k - 1)) :
-    IsShared colored boundary [] := by
+    IsShared sig boundary [] := by
   intro clause member
   exact nomatch member
 
 @[simp]
-theorem isShared_falsum (colored : ColoredSignature k)
+theorem isShared_falsum (sig : ColoredSignature k)
     (boundary : Fin (k - 1)) :
-    IsShared colored boundary (falsum : CNF colored.toSignature) := by
+    IsShared sig boundary (falsum : CNF sig.toSignature) := by
   intro clause clauseMember literal literalMember
   have clauseEmpty : clause = [] := by
     simpa [falsum] using clauseMember
@@ -140,11 +140,11 @@ theorem isShared_falsum (colored : ColoredSignature k)
   exact nomatch literalMember
 
 @[simp]
-theorem isShared_append (colored : ColoredSignature k)
+theorem isShared_append (sig : ColoredSignature k)
     (boundary : Fin (k - 1))
-    (left right : CNF colored.toSignature) :
-    IsShared colored boundary (left ++ right) ↔
-      IsShared colored boundary left ∧ IsShared colored boundary right := by
+    (left right : CNF sig.toSignature) :
+    IsShared sig boundary (left ++ right) ↔
+      IsShared sig boundary left ∧ IsShared sig boundary right := by
   constructor
   · intro shared
     exact ⟨fun clause member => shared clause
@@ -156,9 +156,9 @@ theorem isShared_append (colored : ColoredSignature k)
     · exact sharedLeft clause member
     · exact sharedRight clause member
 
-theorem isShared_disjoin (sharedLeft : IsShared colored boundary left)
-    (sharedRight : IsShared colored boundary right) :
-    IsShared colored boundary (disjoin left right) := by
+theorem isShared_disjoin (sharedLeft : IsShared sig boundary left)
+    (sharedRight : IsShared sig boundary right) :
+    IsShared sig boundary (disjoin left right) := by
   intro clause clauseMember literal literalMember
   simp only [disjoin, List.mem_flatMap, List.mem_map] at clauseMember
   obtain ⟨leftClause, leftMember, rightClause, rightMember, rfl⟩ := clauseMember
@@ -171,15 +171,15 @@ end CNF
 namespace EqualityHornFormula
 
 theorem toCNF_isShared
-    (shared : EqualityHornFormula.IsShared colored boundary horn) :
-    CNF.IsShared colored boundary horn.toCNF := by
+    (shared : EqualityHornFormula.IsShared sig boundary horn) :
+    CNF.IsShared sig boundary horn.toCNF := by
   intro clause clauseMember literal literalMember
   obtain ⟨hornClause, hornMember, rfl⟩ := List.mem_map.mp clauseMember
   have hornShared := shared hornClause hornMember
   rcases List.mem_append.mp literalMember with premiseMember | conclusionMember
   · obtain ⟨equality, equalityMember, rfl⟩ :=
       List.mem_map.mp premiseMember
-    exact (Literal.hasColor_negate_iff colored equality.literal
+    exact (Literal.hasColor_negate_iff sig equality.literal
       (.shared boundary)).mpr (hornShared.1 equality equalityMember)
   · obtain ⟨equality, equalityMember, rfl⟩ :=
       List.mem_map.mp conclusionMember
