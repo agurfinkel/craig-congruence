@@ -46,6 +46,20 @@ theorem satisfied_of_subsumes (subsumes : Subsumes stronger weaker)
   obtain ⟨literal, member, satisfiesLiteral⟩ := satisfies
   exact ⟨literal, subsumes literal member, satisfiesLiteral⟩
 
+/-- A clause cannot be satisfied together with the conjunction negating all
+of its literals. -/
+theorem contradicts_falsifying_formula
+    {signature : Signature} {clause : Clause signature}
+    {interpretation : Interpretation signature}
+    (satisfiesClause : clause.Satisfied interpretation)
+    (satisfiesFalsification :
+      Satisfies interpretation (clause.map Literal.negate)) : False := by
+  obtain ⟨literal, member, satisfiesLiteral⟩ := satisfiesClause
+  have satisfiesNegation := satisfiesFalsification literal.negate
+    (List.mem_map.mpr ⟨literal, member, rfl⟩)
+  exact (Literal.satisfies_negate_iff_not interpretation literal).mp
+    satisfiesNegation satisfiesLiteral
+
 /-- A selected occurrence of `literal` in a clause. Using an explicit prefix
 and suffix avoids imposing decidable equality on function symbols or terms. -/
 structure Occurrence (literal : Literal signature)

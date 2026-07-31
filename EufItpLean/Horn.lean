@@ -96,6 +96,25 @@ def IsShared (colored : ColoredSignature k) (boundary : Fin (k - 1))
     (formula : EqualityHornFormula colored.toSignature) : Prop :=
   ∀ clause ∈ formula, clause.IsShared colored boundary
 
+/-- The always-false Horn formula, represented by `true ⇒ false`. -/
+def falsum : EqualityHornFormula signature :=
+  [{ premises := [], conclusion := none }]
+
+@[simp]
+theorem not_satisfies_falsum
+    (interpretation : Interpretation signature) :
+    ¬SatisfiesEqualityHornFormula interpretation
+      (falsum : EqualityHornFormula signature) := by
+  simp [falsum, SatisfiesEqualityHornFormula,
+    EqualityHornClause.Satisfied]
+
+@[simp]
+theorem isShared_falsum (colored : ColoredSignature k)
+    (boundary : Fin (k - 1)) :
+    IsShared colored boundary
+      (falsum : EqualityHornFormula colored.toSignature) := by
+  simp [falsum, IsShared, EqualityHornClause.IsShared]
+
 @[simp]
 theorem satisfies_nil (interpretation : Interpretation signature) :
     SatisfiesEqualityHornFormula interpretation [] := by

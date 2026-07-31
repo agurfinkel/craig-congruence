@@ -11,6 +11,8 @@ The current formalization provides:
 - color-partitioned EUF clauses and color-indexed partial interpolants for
   theory-lemma leaves;
 - a generic clausal resolution calculus with a semantic soundness theorem;
+- colored LRAT-style proof leaves and a color-indexed partial-interpolant
+  invariant for clausal proofs;
 - a sound fixed-signature EUF interpolation extractor producing equality Horn
   clauses from alternating A/B congruence-closure certificates;
 - equality and disequality literals, interpreted conjunctively;
