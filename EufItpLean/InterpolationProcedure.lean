@@ -4,31 +4,38 @@ import EufItpLean.Interpolation
 
 namespace EUF
 
-/-- The side that produced an equality during cooperative congruence closure. -/
-inductive InterpolationSide where
-  | A
-  | B
-  deriving DecidableEq
+/-- The local color that produced an equality during cooperative congruence
+closure. In the two-formula procedure this is a member of `Fin 2`; the familiar
+names A and B are only aliases for colors `0` and `1`. -/
+abbrev InterpolationColor := Fin 2
 
-namespace InterpolationSide
+namespace InterpolationColor
 
-def other : InterpolationSide → InterpolationSide
-  | .A => .B
-  | .B => .A
+def other (color : InterpolationColor) : InterpolationColor :=
+  if color = 0 then 1 else 0
 
 @[simp]
-theorem other_A : other .A = .B := rfl
+theorem other_zero : other 0 = 1 := rfl
 
 @[simp]
-theorem other_B : other .B = .A := rfl
+theorem other_one : other 1 = 0 := by
+  simp [other]
 
-def formula (side : InterpolationSide)
-    (phiA phiB : Formula signature) : Formula signature :=
-  match side with
-  | .A => phiA
-  | .B => phiB
+theorem eq_zero_or_eq_one (color : InterpolationColor) :
+    color = 0 ∨ color = 1 := by
+  rcases color with ⟨value, less⟩
+  have cases : value = 0 ∨ value = 1 := by omega
+  rcases cases with rfl | rfl
+  · exact Or.inl rfl
+  · exact Or.inr rfl
 
-end InterpolationSide
+/-- Convenience name for local color `0`. -/
+def A : InterpolationColor := 0
+
+/-- Convenience name for local color `1`. -/
+def B : InterpolationColor := 1
+
+end InterpolationColor
 
 /-- The immutable finite extension used throughout an interpolation run. Every
 abstract name has a chosen original-term representative, used to translate
@@ -83,36 +90,37 @@ end SharedEqualityEdge
 
 mutual
 
-  /-- A proof-producing communication step. An equality produced by one side
-  is derived from that side's input formula and finitely many shared equalities
-  previously produced by the other side. -/
+  /-- A proof-producing communication step. An equality produced by one local
+  color is derived from that color's input formula and finitely many shared
+  equalities previously produced by the other local color. -/
   inductive EqualityExchangeProof (colored : ColoredSignature 2)
       (basis : FiniteNameBasis colored)
-      (phiA phiB : Formula colored.toSignature) :
-      InterpolationSide → SharedEqualityEdge colored basis → Type where
-    | derive (side : InterpolationSide)
+      (formulas : InterpolationColor → Formula colored.toSignature) :
+      InterpolationColor → SharedEqualityEdge colored basis → Type where
+    | derive (producer : InterpolationColor)
         (edge : SharedEqualityEdge colored basis)
         (premises : Formula colored.toSignature)
         (dependencies : EqualityExchangeDependencies
-          colored basis phiA phiB side.other premises)
+          colored basis formulas producer.other premises)
         (derivation : DerivesEq
-          (side.formula phiA phiB ++ premises)
+          (formulas producer ++ premises)
           edge.equality.left edge.equality.right) :
-        EqualityExchangeProof colored basis phiA phiB side edge
+        EqualityExchangeProof colored basis formulas producer edge
 
   /-- A finite list of communicated equality proofs, indexed by the formula of
   equality literals that they supply to the receiving closure. -/
   inductive EqualityExchangeDependencies (colored : ColoredSignature 2)
       (basis : FiniteNameBasis colored)
-      (phiA phiB : Formula colored.toSignature) :
-      InterpolationSide → Formula colored.toSignature → Type where
-    | nil (side : InterpolationSide) :
-        EqualityExchangeDependencies colored basis phiA phiB side []
-    | cons {side : InterpolationSide} {edge : SharedEqualityEdge colored basis}
+      (formulas : InterpolationColor → Formula colored.toSignature) :
+      InterpolationColor → Formula colored.toSignature → Type where
+    | nil (producer : InterpolationColor) :
+        EqualityExchangeDependencies colored basis formulas producer []
+    | cons {producer : InterpolationColor}
+        {edge : SharedEqualityEdge colored basis}
         {premises : Formula colored.toSignature}
-        (head : EqualityExchangeProof colored basis phiA phiB side edge)
-        (tail : EqualityExchangeDependencies colored basis phiA phiB side premises) :
-        EqualityExchangeDependencies colored basis phiA phiB side
+        (head : EqualityExchangeProof colored basis formulas producer edge)
+        (tail : EqualityExchangeDependencies colored basis formulas producer premises) :
+        EqualityExchangeDependencies colored basis formulas producer
           (edge.literal :: premises)
 
 end
@@ -120,7 +128,7 @@ end
 namespace EqualityExchangeProof
 
 def producedEquality
-    (_proof : EqualityExchangeProof colored basis phiA phiB side edge) :
+    (_proof : EqualityExchangeProof colored basis formulas producer edge) :
     Equality colored.toSignature :=
   edge.equality
 
@@ -133,13 +141,13 @@ def ofAbstractClosure
     (edge : SharedEqualityEdge colored basis)
     (premises : Formula colored.toSignature)
     (dependencies : EqualityExchangeDependencies
-      colored basis phiA phiB side.other premises)
+      colored basis formulas producer.other premises)
     (closure : AbstractCongruenceClosure
-      (side.formula phiA phiB ++ premises) system)
+      (formulas producer ++ premises) system)
     (edgeJoinable : system.Joinable
       (ExtendedSignature.constant edge.left)
       (ExtendedSignature.constant edge.right)) :
-    EqualityExchangeProof colored basis phiA phiB side edge := by
+    EqualityExchangeProof colored basis formulas producer edge := by
   have leftEquivalent := realized edge.left
   have rightEquivalent := realized edge.right
   have namesEquivalent :=
@@ -151,10 +159,10 @@ def ofAbstractClosure
   have representativesJoinable :=
     AbstractRewriteSystem.joinable_of_equivalent closure.ground_convergent.2
       representativesEquivalent
-  exact .derive side edge premises dependencies
+  exact .derive producer edge premises dependencies
     ((closure.conservative _ _).mpr representativesJoinable)
 
-/-- The Horn clause contributed by an A-produced equality. -/
+/-- The Horn clause contributed by a color-`0` equality. -/
 def justification (edge : SharedEqualityEdge colored basis)
     (premises : List (Equality colored.toSignature)) :
     EqualityHornClause colored.toSignature where
@@ -166,17 +174,17 @@ end EqualityExchangeProof
 namespace EqualityExchangeDependencies
 
 def equalities :
-    EqualityExchangeDependencies colored basis phiA phiB side premises →
+    EqualityExchangeDependencies colored basis formulas producer premises →
       List (Equality colored.toSignature)
   | .nil _ => []
   | .cons head tail => head.producedEquality :: equalities tail
 
 theorem literals_equalities
     : (dependencies : EqualityExchangeDependencies
-        colored basis phiA phiB side premises) →
+        colored basis formulas producer premises) →
       dependencies.equalities.map Equality.literal = premises
   | .nil _ => rfl
-  | @EqualityExchangeDependencies.cons _ _ _ _ _ edge _ head tail => by
+  | @EqualityExchangeDependencies.cons _ _ _ _ edge _ head tail => by
       simp only [equalities, EqualityExchangeProof.producedEquality,
         SharedEqualityEdge.equality, Equality.literal,
         SharedEqualityEdge.literal]
@@ -184,7 +192,7 @@ theorem literals_equalities
 
 theorem satisfies_of_equalities
     (dependencies : EqualityExchangeDependencies
-      colored basis phiA phiB side premises)
+      colored basis formulas producer premises)
     (interpretation : Interpretation colored.toSignature)
     (satisfies : ∀ equality ∈ dependencies.equalities,
       equality.Satisfied interpretation) :
@@ -195,11 +203,11 @@ theorem satisfies_of_equalities
 
 theorem equalities_shared :
     (dependencies : EqualityExchangeDependencies
-      colored basis phiA phiB side premises) →
+      colored basis formulas producer premises) →
     ∀ equality ∈ dependencies.equalities,
       equality.IsShared colored 0
   | .nil _, _, member => nomatch member
-  | @EqualityExchangeDependencies.cons _ _ _ _ _ edge _ head tail,
+  | @EqualityExchangeDependencies.cons _ _ _ _ edge _ head tail,
       equality, member => by
       simp only [equalities, List.mem_cons] at member
       rcases member with equal | member
@@ -211,110 +219,105 @@ end EqualityExchangeDependencies
 
 mutual
 
-  /-- Recursively collect all A-justifications needed for an exchanged
-  equality. B-produced nodes contribute no clause of their own. -/
+  /-- Recursively collect all color-`0` justifications needed for an exchanged
+  equality. Color-`1` nodes contribute no clause of their own. -/
   def EqualityExchangeProof.interpolant :
-      EqualityExchangeProof colored basis phiA phiB side edge →
+      EqualityExchangeProof colored basis formulas producer edge →
         EqualityHornFormula colored.toSignature
-    | .derive side edge _ dependencies _ =>
+    | .derive producer edge _ dependencies _ =>
         dependencies.interpolant ++
-        match side with
-        | .A =>
-            [EqualityExchangeProof.justification edge dependencies.equalities]
-        | .B => []
+        if producer = 0 then
+          [EqualityExchangeProof.justification edge dependencies.equalities]
+        else []
 
   def EqualityExchangeDependencies.interpolant :
-      EqualityExchangeDependencies colored basis phiA phiB side premises →
+      EqualityExchangeDependencies colored basis formulas producer premises →
         EqualityHornFormula colored.toSignature
     | .nil _ => []
     | .cons head tail => head.interpolant ++ tail.interpolant
 
 end
 
-theorem EqualityExchangeProof.interpolant_entailed_by_A
-    (proof : EqualityExchangeProof colored basis phiA phiB side edge) :
-    EntailsEqualityHornFormula phiA proof.interpolant := by
+theorem EqualityExchangeProof.interpolant_entailed_by_color_zero
+    (proof : EqualityExchangeProof colored basis formulas producer edge) :
+    EntailsEqualityHornFormula (formulas 0) proof.interpolant := by
   refine EqualityExchangeProof.rec
     (motive_2 := fun _ _ dependencies =>
-      EntailsEqualityHornFormula phiA dependencies.interpolant)
+      EntailsEqualityHornFormula (formulas 0) dependencies.interpolant)
     ?_ ?_ ?_ proof
   · intro producer produced premises dependencies derivation dependenciesIH
-    intro interpretation satisfiesA
+    intro interpretation satisfiesColorZero
     apply (EqualityHornFormula.satisfies_append interpretation _ _).mpr
     constructor
-    · exact dependenciesIH interpretation satisfiesA
-    · cases producer with
-      | B => exact EqualityHornFormula.satisfies_nil interpretation
-      | A =>
-        apply (EqualityHornFormula.satisfies_singleton interpretation _).mpr
+    · exact dependenciesIH interpretation satisfiesColorZero
+    · rcases producer.eq_zero_or_eq_one with rfl | rfl
+      · apply (EqualityHornFormula.satisfies_singleton interpretation _).mpr
         intro satisfiesEqualities
         have satisfiesPremises : Satisfies interpretation premises :=
           dependencies.satisfies_of_equalities interpretation satisfiesEqualities
         exact derivation.sound
-          ((satisfies_append interpretation phiA premises).mpr
-            ⟨satisfiesA, satisfiesPremises⟩)
+          ((satisfies_append interpretation (formulas 0) premises).mpr
+            ⟨satisfiesColorZero, satisfiesPremises⟩)
+      · exact EqualityHornFormula.satisfies_nil interpretation
   · intro _ interpretation _
     exact EqualityHornFormula.satisfies_nil interpretation
-  · intro _ _ _ _ _ headIH tailIH interpretation satisfiesA
+  · intro _ _ _ _ _ headIH tailIH interpretation satisfiesColorZero
     exact (EqualityHornFormula.satisfies_append interpretation _ _).mpr
-      ⟨headIH interpretation satisfiesA, tailIH interpretation satisfiesA⟩
+      ⟨headIH interpretation satisfiesColorZero,
+        tailIH interpretation satisfiesColorZero⟩
 
-theorem EqualityExchangeDependencies.interpolant_entailed_by_A
+theorem EqualityExchangeDependencies.interpolant_entailed_by_color_zero
     (dependencies : EqualityExchangeDependencies
-      colored basis phiA phiB side premises) :
-    EntailsEqualityHornFormula phiA dependencies.interpolant := by
+      colored basis formulas producer premises) :
+    EntailsEqualityHornFormula (formulas 0) dependencies.interpolant := by
   refine EqualityExchangeDependencies.rec
     (motive_1 := fun _ _ proof =>
-      EntailsEqualityHornFormula phiA proof.interpolant)
+      EntailsEqualityHornFormula (formulas 0) proof.interpolant)
     ?_ ?_ ?_ dependencies
   · intro producer produced localPremises localDependencies derivation dependenciesIH
-    intro interpretation satisfiesA
+    intro interpretation satisfiesColorZero
     apply (EqualityHornFormula.satisfies_append interpretation _ _).mpr
     constructor
-    · exact dependenciesIH interpretation satisfiesA
-    · cases producer with
-      | B => exact EqualityHornFormula.satisfies_nil interpretation
-      | A =>
-        apply (EqualityHornFormula.satisfies_singleton interpretation _).mpr
+    · exact dependenciesIH interpretation satisfiesColorZero
+    · rcases producer.eq_zero_or_eq_one with rfl | rfl
+      · apply (EqualityHornFormula.satisfies_singleton interpretation _).mpr
         intro satisfiesEqualities
         have satisfiesPremises : Satisfies interpretation localPremises :=
           localDependencies.satisfies_of_equalities interpretation satisfiesEqualities
         exact derivation.sound
-          ((satisfies_append interpretation phiA localPremises).mpr
-            ⟨satisfiesA, satisfiesPremises⟩)
+          ((satisfies_append interpretation (formulas 0) localPremises).mpr
+            ⟨satisfiesColorZero, satisfiesPremises⟩)
+      · exact EqualityHornFormula.satisfies_nil interpretation
   · intro _ interpretation _
     exact EqualityHornFormula.satisfies_nil interpretation
-  · intro _ _ _ _ _ headIH tailIH interpretation satisfiesA
+  · intro _ _ _ _ _ headIH tailIH interpretation satisfiesColorZero
     exact (EqualityHornFormula.satisfies_append interpretation _ _).mpr
-      ⟨headIH interpretation satisfiesA, tailIH interpretation satisfiesA⟩
+      ⟨headIH interpretation satisfiesColorZero,
+        tailIH interpretation satisfiesColorZero⟩
 
-theorem EqualityExchangeProof.equality_entailed_by_B
-    (proof : EqualityExchangeProof colored basis phiA phiB side edge)
+theorem EqualityExchangeProof.equality_entailed_by_color_one
+    (proof : EqualityExchangeProof colored basis formulas producer edge)
     (interpretation : Interpretation colored.toSignature)
-    (satisfiesB : Satisfies interpretation phiB)
+    (satisfiesColorOne : Satisfies interpretation (formulas 1))
     (satisfiesInterpolant :
       SatisfiesEqualityHornFormula interpretation proof.interpolant) :
     edge.equality.Satisfied interpretation := by
   refine EqualityExchangeProof.rec
     (motive_2 := fun _ premises dependencies =>
       ∀ interpretation : Interpretation colored.toSignature,
-        Satisfies interpretation phiB →
+        Satisfies interpretation (formulas 1) →
         SatisfiesEqualityHornFormula interpretation dependencies.interpolant →
         Satisfies interpretation premises)
-    ?_ ?_ ?_ proof interpretation satisfiesB satisfiesInterpolant
+    ?_ ?_ ?_ proof interpretation satisfiesColorOne satisfiesInterpolant
   · intro producer produced premises dependencies derivation dependenciesIH
-      interpretation satisfiesB satisfiesInterpolant
+      interpretation satisfiesColorOne satisfiesInterpolant
     have parts :=
       (EqualityHornFormula.satisfies_append interpretation _ _).mp
         satisfiesInterpolant
     have satisfiesPremises : Satisfies interpretation premises :=
-      dependenciesIH interpretation satisfiesB parts.1
-    cases producer with
-    | B =>
-        exact derivation.sound
-          ((satisfies_append interpretation phiB premises).mpr
-            ⟨satisfiesB, satisfiesPremises⟩)
-    | A =>
+      dependenciesIH interpretation satisfiesColorOne parts.1
+    rcases producer.eq_zero_or_eq_one with rfl | rfl
+    ·
         have satisfiesClause :=
           (EqualityHornFormula.satisfies_singleton interpretation _).mp parts.2
         apply satisfiesClause
@@ -322,15 +325,19 @@ theorem EqualityExchangeProof.equality_entailed_by_B
           dependencies.equalities).mp (by
             rw [dependencies.literals_equalities]
             exact satisfiesPremises)
+    ·
+        exact derivation.sound
+          ((satisfies_append interpretation (formulas 1) premises).mpr
+            ⟨satisfiesColorOne, satisfiesPremises⟩)
   · intro _ interpretation _ _ literal member
     exact nomatch member
-  · intro _ edge _ head tail headIH tailIH interpretation satisfiesB
+  · intro _ edge _ head tail headIH tailIH interpretation satisfiesColorOne
       satisfiesInterpolant
     have parts :=
       (EqualityHornFormula.satisfies_append interpretation _ _).mp
         satisfiesInterpolant
-    have headSatisfied := headIH interpretation satisfiesB parts.1
-    have tailSatisfied := tailIH interpretation satisfiesB parts.2
+    have headSatisfied := headIH interpretation satisfiesColorOne parts.1
+    have tailSatisfied := tailIH interpretation satisfiesColorOne parts.2
     intro literal member
     simp only [List.mem_cons] at member
     rcases member with equal | member
@@ -339,34 +346,30 @@ theorem EqualityExchangeProof.equality_entailed_by_B
         interpretation).mp headSatisfied
     · exact tailSatisfied literal member
 
-theorem EqualityExchangeDependencies.equalities_entailed_by_B
+theorem EqualityExchangeDependencies.equalities_entailed_by_color_one
     (dependencies : EqualityExchangeDependencies
-      colored basis phiA phiB side premises)
+      colored basis formulas producer premises)
     (interpretation : Interpretation colored.toSignature)
-    (satisfiesB : Satisfies interpretation phiB)
+    (satisfiesColorOne : Satisfies interpretation (formulas 1))
     (satisfiesInterpolant :
       SatisfiesEqualityHornFormula interpretation dependencies.interpolant) :
     Satisfies interpretation premises := by
   refine EqualityExchangeDependencies.rec
     (motive_1 := fun _ edge proof =>
       ∀ interpretation : Interpretation colored.toSignature,
-        Satisfies interpretation phiB →
+        Satisfies interpretation (formulas 1) →
         SatisfiesEqualityHornFormula interpretation proof.interpolant →
         edge.equality.Satisfied interpretation)
-    ?_ ?_ ?_ dependencies interpretation satisfiesB satisfiesInterpolant
+    ?_ ?_ ?_ dependencies interpretation satisfiesColorOne satisfiesInterpolant
   · intro producer produced localPremises localDependencies derivation dependenciesIH
-      interpretation satisfiesB satisfiesInterpolant
+      interpretation satisfiesColorOne satisfiesInterpolant
     have parts :=
       (EqualityHornFormula.satisfies_append interpretation _ _).mp
         satisfiesInterpolant
     have satisfiesPremises : Satisfies interpretation localPremises :=
-      dependenciesIH interpretation satisfiesB parts.1
-    cases producer with
-    | B =>
-        exact derivation.sound
-          ((satisfies_append interpretation phiB localPremises).mpr
-            ⟨satisfiesB, satisfiesPremises⟩)
-    | A =>
+      dependenciesIH interpretation satisfiesColorOne parts.1
+    rcases producer.eq_zero_or_eq_one with rfl | rfl
+    ·
         have satisfiesClause :=
           (EqualityHornFormula.satisfies_singleton interpretation _).mp parts.2
         apply satisfiesClause
@@ -374,15 +377,19 @@ theorem EqualityExchangeDependencies.equalities_entailed_by_B
           localDependencies.equalities).mp (by
             rw [localDependencies.literals_equalities]
             exact satisfiesPremises)
+    ·
+        exact derivation.sound
+          ((satisfies_append interpretation (formulas 1) localPremises).mpr
+            ⟨satisfiesColorOne, satisfiesPremises⟩)
   · intro _ interpretation _ _ literal member
     exact nomatch member
-  · intro _ edge _ head tail headIH tailIH interpretation satisfiesB
+  · intro _ edge _ head tail headIH tailIH interpretation satisfiesColorOne
       satisfiesInterpolant
     have parts :=
       (EqualityHornFormula.satisfies_append interpretation _ _).mp
         satisfiesInterpolant
-    have headSatisfied := headIH interpretation satisfiesB parts.1
-    have tailSatisfied := tailIH interpretation satisfiesB parts.2
+    have headSatisfied := headIH interpretation satisfiesColorOne parts.1
+    have tailSatisfied := tailIH interpretation satisfiesColorOne parts.2
     intro literal member
     simp only [List.mem_cons] at member
     rcases member with equal | member
@@ -392,7 +399,7 @@ theorem EqualityExchangeDependencies.equalities_entailed_by_B
     · exact tailSatisfied literal member
 
 theorem EqualityExchangeProof.interpolant_shared
-    (proof : EqualityExchangeProof colored basis phiA phiB side edge) :
+    (proof : EqualityExchangeProof colored basis formulas producer edge) :
     EqualityHornFormula.IsShared colored 0 proof.interpolant := by
   refine EqualityExchangeProof.rec
     (motive_2 := fun _ _ dependencies =>
@@ -402,9 +409,8 @@ theorem EqualityExchangeProof.interpolant_shared
     apply (EqualityHornFormula.isShared_append colored 0 _ _).mpr
     constructor
     · exact dependenciesIH
-    · cases producer with
-      | B => exact EqualityHornFormula.isShared_nil colored 0
-      | A =>
+    · rcases producer.eq_zero_or_eq_one with rfl | rfl
+      ·
         apply (EqualityHornFormula.isShared_singleton colored 0 _).mpr
         constructor
         · exact dependencies.equalities_shared
@@ -416,6 +422,7 @@ theorem EqualityExchangeProof.interpolant_shared
             (Option.some.inj equalSome).symm
           subst equality
           exact produced.isShared
+      · exact EqualityHornFormula.isShared_nil colored 0
   · intro _
     exact EqualityHornFormula.isShared_nil colored 0
   · intro _ _ _ _ _ headIH tailIH
@@ -424,7 +431,7 @@ theorem EqualityExchangeProof.interpolant_shared
 
 theorem EqualityExchangeDependencies.interpolant_shared
     (dependencies : EqualityExchangeDependencies
-      colored basis phiA phiB side premises) :
+      colored basis formulas producer premises) :
     EqualityHornFormula.IsShared colored 0 dependencies.interpolant := by
   refine EqualityExchangeDependencies.rec
     (motive_1 := fun _ _ proof =>
@@ -434,9 +441,8 @@ theorem EqualityExchangeDependencies.interpolant_shared
     apply (EqualityHornFormula.isShared_append colored 0 _ _).mpr
     constructor
     · exact dependenciesIH
-    · cases producer with
-      | B => exact EqualityHornFormula.isShared_nil colored 0
-      | A =>
+    · rcases producer.eq_zero_or_eq_one with rfl | rfl
+      ·
         apply (EqualityHornFormula.isShared_singleton colored 0 _).mpr
         constructor
         · exact localDependencies.equalities_shared
@@ -448,34 +454,35 @@ theorem EqualityExchangeDependencies.interpolant_shared
             (Option.some.inj equalSome).symm
           subst equality
           exact produced.isShared
+      · exact EqualityHornFormula.isShared_nil colored 0
   · intro _
     exact EqualityHornFormula.isShared_nil colored 0
   · intro _ _ _ _ _ headIH tailIH
     exact (EqualityHornFormula.isShared_append colored 0 _ _).mpr
       ⟨headIH, tailIH⟩
 
-/-- A final conflict found by one of the two closures. If A owns the explicit
-disequality, its opposite-side dependencies become a negative Horn clause. If
-B owns it, the A-produced dependencies suffice for B to close the conflict. -/
+/-- A final conflict found by one of the two closures. If color `0` owns the
+explicit disequality, its color-`1` dependencies become a negative Horn clause.
+If color `1` owns it, the color-`0` dependencies suffice to close the conflict. -/
 inductive EqualityInterpolationConflict (colored : ColoredSignature 2)
     (basis : FiniteNameBasis colored)
-    (phiA phiB : Formula colored.toSignature) : Type where
-  | inA (left right : Term colored.toSignature)
-      (disequality : Literal.ne left right ∈ phiA)
+    (formulas : InterpolationColor → Formula colored.toSignature) : Type where
+  | atColorZero (left right : Term colored.toSignature)
+      (disequality : Literal.ne left right ∈ formulas 0)
       (premises : Formula colored.toSignature)
       (dependencies : EqualityExchangeDependencies
-        colored basis phiA phiB .B premises)
+        colored basis formulas 1 premises)
       (derivation : DerivesEq
-        (phiA ++ premises) left right) :
-      EqualityInterpolationConflict colored basis phiA phiB
-  | inB (left right : Term colored.toSignature)
-      (disequality : Literal.ne left right ∈ phiB)
+        (formulas 0 ++ premises) left right) :
+      EqualityInterpolationConflict colored basis formulas
+  | atColorOne (left right : Term colored.toSignature)
+      (disequality : Literal.ne left right ∈ formulas 1)
       (premises : Formula colored.toSignature)
       (dependencies : EqualityExchangeDependencies
-        colored basis phiA phiB .A premises)
+        colored basis formulas 0 premises)
       (derivation : DerivesEq
-        (phiB ++ premises) left right) :
-      EqualityInterpolationConflict colored basis phiA phiB
+        (formulas 1 ++ premises) left right) :
+      EqualityInterpolationConflict colored basis formulas
 
 namespace EqualityInterpolationConflict
 
@@ -485,23 +492,23 @@ def negativeJustification {colored : ColoredSignature 2}
   premises := premises
   conclusion := none
 
-/-- Extract the conjunction of A-justifications from the recursively expanded
-conflict. -/
-def interpolant : EqualityInterpolationConflict colored basis phiA phiB →
+/-- Extract the conjunction of color-`0` justifications from the recursively
+expanded conflict. -/
+def interpolant : EqualityInterpolationConflict colored basis formulas →
     EqualityHornFormula colored.toSignature
-  | .inA _ _ _ _ dependencies _ =>
+  | .atColorZero _ _ _ _ dependencies _ =>
       dependencies.interpolant ++
       [negativeJustification dependencies.equalities]
-  | .inB _ _ _ _ dependencies _ =>
+  | .atColorOne _ _ _ _ dependencies _ =>
       dependencies.interpolant
 
 theorem interpolant_shared
-    (conflict : EqualityInterpolationConflict colored basis phiA phiB) :
+    (conflict : EqualityInterpolationConflict colored basis formulas) :
     EqualityHornFormula.IsShared colored 0 conflict.interpolant := by
   cases conflict with
-  | inB _ _ _ _ dependencies _ =>
+  | atColorOne _ _ _ _ dependencies _ =>
       exact dependencies.interpolant_shared
-  | inA _ _ _ _ dependencies _ =>
+  | atColorZero _ _ _ _ dependencies _ =>
       apply (EqualityHornFormula.isShared_append colored 0 _ _).mpr
       constructor
       · exact dependencies.interpolant_shared
@@ -511,46 +518,47 @@ theorem interpolant_shared
         · intro equality member
           exact nomatch member
 
-theorem interpolant_entailed_by_A
-    (conflict : EqualityInterpolationConflict colored basis phiA phiB) :
-    EntailsEqualityHornFormula phiA conflict.interpolant := by
+theorem interpolant_entailed_by_color_zero
+    (conflict : EqualityInterpolationConflict colored basis formulas) :
+    EntailsEqualityHornFormula (formulas 0) conflict.interpolant := by
   cases conflict with
-  | inB _ _ _ _ dependencies _ =>
-      exact dependencies.interpolant_entailed_by_A
-  | inA left right disequality _ dependencies derivation =>
-      intro interpretation satisfiesA
+  | atColorOne _ _ _ _ dependencies _ =>
+      exact dependencies.interpolant_entailed_by_color_zero
+  | atColorZero left right disequality _ dependencies derivation =>
+      intro interpretation satisfiesColorZero
       apply (EqualityHornFormula.satisfies_append interpretation _ _).mpr
       constructor
-      · exact dependencies.interpolant_entailed_by_A interpretation satisfiesA
+      · exact dependencies.interpolant_entailed_by_color_zero
+          interpretation satisfiesColorZero
       · apply (EqualityHornFormula.satisfies_singleton interpretation _).mpr
         intro satisfiesEqualities
         have satisfiesPremises :=
           dependencies.satisfies_of_equalities interpretation satisfiesEqualities
         have equal : interpretation.eval left = interpretation.eval right :=
           derivation.sound
-            ((satisfies_append interpretation phiA _).mpr
-              ⟨satisfiesA, satisfiesPremises⟩)
-        exact (satisfiesA _ disequality) equal
+            ((satisfies_append interpretation (formulas 0) _).mpr
+              ⟨satisfiesColorZero, satisfiesPremises⟩)
+        exact (satisfiesColorZero _ disequality) equal
 
-theorem interpolant_unsatisfiable_with_B
-    (conflict : EqualityInterpolationConflict colored basis phiA phiB) :
-    UnsatisfiableWithEqualityHornFormula conflict.interpolant phiB := by
-  rintro ⟨interpretation, satisfiesInterpolant, satisfiesB⟩
+theorem interpolant_unsatisfiable_with_color_one
+    (conflict : EqualityInterpolationConflict colored basis formulas) :
+    UnsatisfiableWithEqualityHornFormula conflict.interpolant (formulas 1) := by
+  rintro ⟨interpretation, satisfiesInterpolant, satisfiesColorOne⟩
   cases conflict with
-  | inB left right disequality _ dependencies derivation =>
-      have satisfiesPremises := dependencies.equalities_entailed_by_B
-        interpretation satisfiesB satisfiesInterpolant
+  | atColorOne left right disequality _ dependencies derivation =>
+      have satisfiesPremises := dependencies.equalities_entailed_by_color_one
+        interpretation satisfiesColorOne satisfiesInterpolant
       have equal : interpretation.eval left = interpretation.eval right :=
         derivation.sound
-          ((satisfies_append interpretation phiB _).mpr
-            ⟨satisfiesB, satisfiesPremises⟩)
-      exact (satisfiesB _ disequality) equal
-  | inA _ _ _ _ dependencies _ =>
+          ((satisfies_append interpretation (formulas 1) _).mpr
+            ⟨satisfiesColorOne, satisfiesPremises⟩)
+      exact (satisfiesColorOne _ disequality) equal
+  | atColorZero _ _ _ _ dependencies _ =>
       have parts :=
         (EqualityHornFormula.satisfies_append interpretation _ _).mp
           satisfiesInterpolant
-      have satisfiesPremises := dependencies.equalities_entailed_by_B
-        interpretation satisfiesB parts.1
+      have satisfiesPremises := dependencies.equalities_entailed_by_color_one
+        interpretation satisfiesColorOne parts.1
       have satisfiesNegative :=
         (EqualityHornFormula.satisfies_singleton interpretation _).mp parts.2
       apply satisfiesNegative
@@ -564,24 +572,26 @@ The certificate supplies the finite exchange provenance and final conflict;
 constructing such a certificate for every inconsistent input is the separate
 completeness problem. -/
 theorem sound
-    (conflict : EqualityInterpolationConflict colored basis phiA phiB)
-    (phiAColor : Formula.IsColor colored 0 phiA)
-    (phiBColor : Formula.IsColor colored 1 phiB) :
-    IsInterpolant colored phiA phiB conflict.interpolant := by
-  have entails := conflict.interpolant_entailed_by_A
-  have unsatisfiableWithB := conflict.interpolant_unsatisfiable_with_B
-  have inputsUnsatisfiable : Unsatisfiable (phiA ++ phiB) := by
+    (conflict : EqualityInterpolationConflict colored basis formulas)
+    (formulaColors : ∀ color, Formula.IsColor colored color (formulas color)) :
+    IsInterpolant colored (formulas 0) (formulas 1) conflict.interpolant := by
+  have entails := conflict.interpolant_entailed_by_color_zero
+  have unsatisfiableWithColorOne :=
+    conflict.interpolant_unsatisfiable_with_color_one
+  have inputsUnsatisfiable : Unsatisfiable (formulas 0 ++ formulas 1) := by
     rintro ⟨interpretation, satisfiesInputs⟩
-    have parts := (satisfies_append interpretation phiA phiB).mp satisfiesInputs
-    apply unsatisfiableWithB
+    have parts :=
+      (satisfies_append interpretation (formulas 0) (formulas 1)).mp
+        satisfiesInputs
+    apply unsatisfiableWithColorOne
     exact ⟨interpretation, entails interpretation parts.1, parts.2⟩
   exact {
-    phi1_color := phiAColor
-    phi2_color := phiBColor
+    phi1_color := formulaColors 0
+    phi2_color := formulaColors 1
     inputs_unsatisfiable := inputsUnsatisfiable
     interpolant_shared := conflict.interpolant_shared
     phi1_entails := entails
-    interpolant_phi2_unsatisfiable := unsatisfiableWithB
+    interpolant_phi2_unsatisfiable := unsatisfiableWithColorOne
   }
 
 end EqualityInterpolationConflict
