@@ -1,3 +1,5 @@
+-- SPDX-License-Identifier: MIT
+
 import Basic
 import EUFInterpolation.Interpolation
 import EUFInterpolation.InterpolationProcedure

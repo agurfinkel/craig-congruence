@@ -1,6 +1,16 @@
+-- SPDX-License-Identifier: MIT
+
 import Std
 import CongruenceClosure.AbstractCongruenceClosure
 import EUFInterpolation.Interpolation
+
+/-!
+A certificate-driven EUF interpolation procedure based on alternating
+congruence closures. It tracks finite shared names and equality-exchange
+provenance, extracts an equality Horn interpolant from a final conflict, and
+proves the extracted formula satisfies the semantic interpolation
+specification.
+-/
 
 namespace EUF
 

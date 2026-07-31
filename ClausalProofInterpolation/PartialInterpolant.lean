@@ -1,7 +1,16 @@
+-- SPDX-License-Identifier: MIT
+
 import Basic.Colored
 import ClausalProofInterpolation.TheoryLemmaInterpolation
 import ClausalProofs.ClausalProof
 import Basic.HornToCNF
+
+/-!
+Local partial-interpolant invariants for colored clausal proofs. This module
+defines annotated theory leaves, occurrence-level clause partitions, and the
+rules that propagate partial interpolants across partitioned resolution steps
+and contradictions.
+-/
 
 namespace EUF
 

@@ -1,3 +1,5 @@
+-- SPDX-License-Identifier: MIT
+
 import Basic.Syntax
 import Basic.Semantics
 import Basic.Color

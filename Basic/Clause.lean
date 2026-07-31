@@ -1,5 +1,13 @@
+-- SPDX-License-Identifier: MIT
+
 import Basic.Semantics
 import Basic.Color
+
+/-!
+Disjunctive clauses and conjunctive CNFs over EUF literals, together with their
+satisfaction semantics and basic operations. This includes falsity, append,
+distributed CNF disjunction, and their semantic characterization lemmas.
+-/
 
 namespace EUF
 

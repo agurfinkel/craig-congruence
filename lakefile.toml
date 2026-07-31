@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+
 name = "craig-congruence"
 version = "0.1.0"
 defaultTargets = ["craig-congruence"]

@@ -1,3 +1,5 @@
+-- SPDX-License-Identifier: MIT
+
 import Archived.CongruenceGraph
 import Archived.Examples
 

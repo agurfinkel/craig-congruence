@@ -1,3 +1,5 @@
+-- SPDX-License-Identifier: MIT
+
 import EUFInterpolation
 import ClausalProofs
 import ClausalProofInterpolation.TheoryLemmaInterpolation

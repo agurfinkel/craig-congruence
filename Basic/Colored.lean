@@ -1,4 +1,12 @@
+-- SPDX-License-Identifier: MIT
+
 import Basic.Clause
+
+/-!
+Colored clausal representations for the two-part interpolation setting.
+`ColoredClause` partitions literal occurrences, while `ColoredCNF` partitions
+input clauses and records their color correctness.
+-/
 
 namespace EUF
 

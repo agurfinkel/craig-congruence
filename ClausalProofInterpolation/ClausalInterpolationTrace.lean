@@ -1,4 +1,13 @@
+-- SPDX-License-Identifier: MIT
+
 import ClausalProofInterpolation.PartialInterpolant
+
+/-!
+An annotation fold over clausal resolution traces. It constructs clause
+partitions and partial interpolants for inputs, theory lemmas, and derived
+clauses, and proves that the annotation at an explicit contradiction is a
+sound clausal interpolant.
+-/
 
 namespace EUF
 

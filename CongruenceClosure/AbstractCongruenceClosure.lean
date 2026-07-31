@@ -1,3 +1,5 @@
+-- SPDX-License-Identifier: MIT
+
 import CongruenceClosure.EquationalTheory
 
 namespace EUF

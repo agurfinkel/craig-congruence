@@ -1,3 +1,11 @@
+-- SPDX-License-Identifier: MIT
+
+/-!
+Ground EUF syntax: arity-indexed signatures, terms, equality and disequality
+literals, and conjunctive formulas. Convenience constructors cover constants
+and unary applications, along with literal and formula helpers.
+-/
+
 namespace EUF
 
 /-- A signature assigns a type of function symbols to every arity. -/

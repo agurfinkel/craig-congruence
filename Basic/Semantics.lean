@@ -1,4 +1,12 @@
+-- SPDX-License-Identifier: MIT
+
 import Basic.Syntax
+
+/-!
+Standard semantics for ground EUF: interpretations, recursive term evaluation,
+literal and conjunctive-formula satisfaction, semantic entailment, and
+satisfiability helpers.
+-/
 
 namespace EUF
 

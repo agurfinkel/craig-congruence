@@ -1,5 +1,13 @@
+-- SPDX-License-Identifier: MIT
+
 import Basic.Color
 import Basic.Horn
+
+/-!
+The semantic specification of an interpolant between two colored conjunctive
+EUF formulas. It packages input color conditions, inconsistency, sharedness,
+entailment from the first side, and inconsistency with the second side.
+-/
 
 namespace EUF
 

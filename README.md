@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: MIT -->
+
 # CraigCongruence
 
 A Lean 4 development for proofs about equality with uninterpreted functions

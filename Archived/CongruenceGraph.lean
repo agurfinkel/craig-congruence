@@ -1,4 +1,12 @@
+-- SPDX-License-Identifier: MIT
+
 import CongruenceClosure.EquationalTheory
+
+/-!
+Certified congruence graphs, undirected path connectivity, and their semantic
+soundness. The final theorem turns a path connecting the endpoints of an input
+disequality into an EUF unsatisfiability certificate.
+-/
 
 namespace EUF
 

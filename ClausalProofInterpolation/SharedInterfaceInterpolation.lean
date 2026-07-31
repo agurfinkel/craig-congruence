@@ -1,4 +1,13 @@
+-- SPDX-License-Identifier: MIT
+
 import ClausalProofInterpolation.ClausalInterpolationTrace
+
+/-!
+Whole-trace interpolation by shared-interface extraction. The module records
+clause owners and permitted dependencies, constructs semantic entailment
+witnesses, prunes a colorable trace to shared source clauses, and proves that
+the selected interface is a clausal Craig interpolant.
+-/
 
 namespace EUF
 

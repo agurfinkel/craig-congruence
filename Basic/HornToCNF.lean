@@ -1,5 +1,13 @@
+-- SPDX-License-Identifier: MIT
+
 import Basic.Horn
 import Basic.Clause
+
+/-!
+The semantics-preserving translation from equality Horn clauses and formulas
+to ordinary EUF clauses and CNFs. Sharedness is shown to be preserved by the
+translation.
+-/
 
 namespace EUF
 

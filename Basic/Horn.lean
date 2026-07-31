@@ -1,5 +1,13 @@
+-- SPDX-License-Identifier: MIT
+
 import Basic.Color
 import Basic.Semantics
+
+/-!
+Equality atoms, equality Horn clauses, and conjunctions of Horn clauses. The
+module defines their semantics, entailment and inconsistency predicates, and
+sharedness conditions used by interpolation.
+-/
 
 namespace EUF
 

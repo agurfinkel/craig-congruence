@@ -1,4 +1,12 @@
+-- SPDX-License-Identifier: MIT
+
 import Basic.Syntax
+
+/-!
+Colors for local and adjacent-shared function symbols. The module lifts symbol
+colors to availability, exact color, and colorability predicates on terms,
+literals, and conjunctive formulas.
+-/
 
 namespace EUF
 

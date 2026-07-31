@@ -1,4 +1,11 @@
+-- SPDX-License-Identifier: MIT
+
 import Archived.CongruenceGraph
+
+/-!
+A small checked example of the archived congruence-graph API, proving that the
+conjunction `x = y` and `x ≠ y` is unsatisfiable.
+-/
 
 namespace EUF.Examples
 

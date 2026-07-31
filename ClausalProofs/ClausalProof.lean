@@ -1,4 +1,13 @@
+-- SPDX-License-Identifier: MIT
+
 import Basic.Clause
+
+/-!
+A proof-relevant clausal resolution calculus. It defines literal occurrences,
+exact resolution steps, ordered chains and traces, refutations, and semantic
+soundness—including unsatisfiability from input clauses and valid theory
+lemmas.
+-/
 
 namespace EUF
 

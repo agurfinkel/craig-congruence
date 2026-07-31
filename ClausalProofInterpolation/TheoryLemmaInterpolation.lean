@@ -1,5 +1,14 @@
+-- SPDX-License-Identifier: MIT
+
 import Basic.Colored
 import EUFInterpolation.Interpolation
+
+/-!
+Interpolation interfaces for valid colored EUF theory lemmas. Negating a
+theory clause yields two conjunctive colored parts; an ordinary EUF interpolant
+between those parts is converted to the orientation-specific annotation needed
+at a clausal proof leaf.
+-/
 
 namespace EUF
 
