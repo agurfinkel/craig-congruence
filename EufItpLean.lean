@@ -13,4 +13,5 @@ import EufItpLean.ClausalInterpolation
 import EufItpLean.ClausalProof
 import EufItpLean.HornToCNF
 import EufItpLean.ColoredClausalProof
+import EufItpLean.ClausalInterpolationTrace
 import EufItpLean.Examples

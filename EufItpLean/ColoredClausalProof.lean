@@ -131,6 +131,18 @@ theorem falsifyingPart_owned_owner
       clause.map Literal.negate := by
   simp [owned, ColoredClause.falsifyingPart]
 
+theorem part_eq_nil_of_empty
+    (partition : ClausePartition colored []) (side : Fin 2) :
+    partition.part side = [] := by
+  have concatenated : partition.part 0 ++ partition.part 1 = [] :=
+    partition.reconstructs.eq_nil
+  have parts := List.append_eq_nil_iff.mp concatenated
+  refine Fin.cases parts.1 ?_ side
+  intro predecessor
+  have equal : predecessor = 0 := Subsingleton.elim _ _
+  subst predecessor
+  exact parts.2
+
 /-- The partition already stored by a theory lemma reconstructs its own
 underlying clause. -/
 def ofTheoryLemma (lemma : TheoryLemma colored) :
@@ -416,6 +428,30 @@ def atContradiction
       ⟨interpretation, satisfiesInterpolant, satisfiesOther, by
         intro literal member
         exact nomatch member⟩
+
+/-- The empty-clause result does not depend on using the canonical empty
+partition: reconstruction forces both parts of every empty-clause partition
+to be empty. -/
+def atAnyContradictionPartition
+    {colored : ColoredSignature 2} {inputs : ColoredCNF colored}
+    {side : Fin 2} {partition : ClausePartition colored []}
+    {interpolant : CNF colored.toSignature}
+    (invariant : IsPartialInterpolantAt inputs [] partition side interpolant)
+    (inputsUnsatisfiable : inputs.Unsatisfiable) :
+    IsClausalInterpolantAt inputs side interpolant where
+  inputs_unsatisfiable := inputsUnsatisfiable
+  interpolant_shared := invariant.interpolant_shared
+  side_entails := by
+    intro interpretation satisfiesSide
+    apply invariant.side_entails interpretation satisfiesSide
+    simp [ColoredClause.falsifyingPart,
+      ClausePartition.part_eq_nil_of_empty partition side, Satisfies]
+  interpolant_other_unsatisfiable := by
+    rintro ⟨interpretation, satisfiesInterpolant, satisfiesOther⟩
+    apply invariant.interpolant_other_unsatisfiable
+    refine ⟨interpretation, satisfiesInterpolant, satisfiesOther, ?_⟩
+    simp [ColoredClause.falsifyingPart,
+      ClausePartition.part_eq_nil_of_empty partition side.rev, Satisfies]
 
 end IsPartialInterpolantAt
 
