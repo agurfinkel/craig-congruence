@@ -1,4 +1,4 @@
-import CraigCongruence.CongruenceGraph
+import Archived.CongruenceGraph
 
 namespace EUF.Examples
 

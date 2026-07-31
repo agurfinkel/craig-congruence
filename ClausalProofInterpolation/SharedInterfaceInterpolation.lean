@@ -1,4 +1,4 @@
-import CraigCongruence.ClausalInterpolationTrace
+import ClausalProofInterpolation.ClausalInterpolationTrace
 
 namespace EUF
 

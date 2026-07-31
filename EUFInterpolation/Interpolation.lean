@@ -1,5 +1,5 @@
-import CraigCongruence.Color
-import CraigCongruence.Horn
+import Basic.Color
+import Basic.Horn
 
 namespace EUF
 

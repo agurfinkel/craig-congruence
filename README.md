@@ -39,3 +39,36 @@ Build the project with:
 ```sh
 lake build
 ```
+
+## Library structure
+
+The single Lake package contains six libraries with explicit import
+dependencies:
+
+- `Basic`: ground terms and literals, semantics, clauses and CNFs, colored
+  signatures and clausal forms, equality Horn formulas, and Horn-to-CNF
+  conversion;
+- `CongruenceClosure`: equality derivations and abstract congruence-closure
+  certificates;
+- `EUFInterpolation`: semantic interpolation for conjunctions of literals and
+  direct interpolant extraction from a congruence-closure conflict;
+- `ClausalProofs`: resolution steps, chains, traces, refutations, and their
+  semantic soundness theorems;
+- `ClausalProofInterpolation`: colored theory leaves, partial-interpolant
+  rules, trace annotation, pruning, and complete clausal interpolation; and
+- `Archived`: preserved results that are not dependencies of the end-to-end
+  interpolation result.
+
+The dependency graph is:
+
+```text
+Basic -> CongruenceClosure -> EUFInterpolation -----+
+  |                                                  |
+  +-> ClausalProofs ---------------------------------+-> ClausalProofInterpolation
+CongruenceClosure -> Archived
+```
+
+The default `lake build` verifies the executable and all libraries it uses.
+The archived library can be checked separately with:
+
+```sh

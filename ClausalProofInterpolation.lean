@@ -1,0 +1,8 @@
+import EUFInterpolation
+import ClausalProofs
+import ClausalProofInterpolation.TheoryLemmaInterpolation
+import ClausalProofInterpolation.PartialInterpolant
+import ClausalProofInterpolation.ClausalInterpolationTrace
+import ClausalProofInterpolation.SharedInterfaceInterpolation
+
+/-! Interpolation procedures over colorable clausal EUF proofs. -/

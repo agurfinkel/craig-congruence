@@ -1,28 +1,9 @@
-import CraigCongruence.HornToCNF
+import Basic.Colored
+import ClausalProofInterpolation.TheoryLemmaInterpolation
+import ClausalProofs.ClausalProof
+import Basic.HornToCNF
 
 namespace EUF
-
-/-- A two-part clausal EUF input. Every clause in a part contains only local
-symbols of that part and symbols shared across boundary `0`. -/
-structure ColoredCNF (colored : ColoredSignature 2) where
-  part : Fin 2 → CNF colored.toSignature
-  part_color : ∀ side clause, clause ∈ part side →
-    Formula.IsColor colored side clause
-
-namespace ColoredCNF
-
-def Satisfied (inputs : ColoredCNF colored)
-    (interpretation : Interpretation colored.toSignature) : Prop :=
-  ∀ side, (inputs.part side).Satisfied interpretation
-
-def Satisfiable (inputs : ColoredCNF colored) : Prop :=
-  ∃ interpretation : Interpretation colored.toSignature,
-    inputs.Satisfied interpretation
-
-def Unsatisfiable (inputs : ColoredCNF colored) : Prop :=
-  ¬inputs.Satisfiable
-
-end ColoredCNF
 
 /-- A theory lemma together with one chosen color orientation and its shared
 partial interpolant. The same semantic definition covers the conventional

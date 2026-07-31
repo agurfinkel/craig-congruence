@@ -3,7 +3,22 @@ version = "0.1.0"
 defaultTargets = ["craig-congruence"]
 
 [[lean_lib]]
-name = "CraigCongruence"
+name = "Basic"
+
+[[lean_lib]]
+name = "CongruenceClosure"
+
+[[lean_lib]]
+name = "EUFInterpolation"
+
+[[lean_lib]]
+name = "ClausalProofs"
+
+[[lean_lib]]
+name = "ClausalProofInterpolation"
+
+[[lean_lib]]
+name = "Archived"
 
 [[lean_exe]]
 name = "craig-congruence"

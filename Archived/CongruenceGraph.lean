@@ -1,4 +1,4 @@
-import CraigCongruence.EquationalTheory
+import CongruenceClosure.EquationalTheory
 
 namespace EUF
 

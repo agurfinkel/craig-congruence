@@ -1,6 +1,6 @@
 import Std
-import CraigCongruence.AbstractCongruenceClosure
-import CraigCongruence.Interpolation
+import CongruenceClosure.AbstractCongruenceClosure
+import EUFInterpolation.Interpolation
 
 namespace EUF
 

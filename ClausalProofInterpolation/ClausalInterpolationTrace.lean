@@ -1,4 +1,4 @@
-import CraigCongruence.ColoredClausalProof
+import ClausalProofInterpolation.PartialInterpolant
 
 namespace EUF
 

@@ -1,5 +1,5 @@
-import CraigCongruence.Color
-import CraigCongruence.Semantics
+import Basic.Color
+import Basic.Semantics
 
 namespace EUF
 

@@ -1,4 +1,5 @@
-import CraigCongruence.ClausalProof
+import Basic.Horn
+import Basic.Clause
 
 namespace EUF
 
