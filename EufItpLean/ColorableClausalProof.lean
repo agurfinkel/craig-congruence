@@ -450,6 +450,107 @@ inductive ColorableTraceEntailment
           interface owners database justification anchorAllowed parentsAllowed
           containsSharedSource))
 
+/-- Every shared source-owned clause in a database occurs in the proposed
+interface. -/
+def SharedSourceCovered
+    {colored : ColoredSignature 2} (source : Fin 2)
+    (clauses : CNF colored.toSignature)
+    (owners : ClauseOwnerDatabase clauses)
+    (interface : CNF colored.toSignature) : Prop :=
+  ∀ index : Fin clauses.length,
+    owners index = source →
+    (clauses.get index).IsShared colored 0 →
+    clauses.get index ∈ interface
+
+namespace SharedSourceCovered
+
+/-- Coverage of a snoc database restricts to its previous prefix. -/
+theorem previous
+    {colored : ColoredSignature 2} {source : Fin 2}
+    {clauses interface : CNF colored.toSignature}
+    {owners : ClauseOwnerDatabase clauses}
+    {clause : Clause colored.toSignature} {owner : Fin 2}
+    (covered : SharedSourceCovered source (clauses ++ [clause])
+      (owners.snoc owner) interface) :
+    SharedSourceCovered source clauses owners interface := by
+  intro index sourceOwned shared
+  let lifted : Fin (clauses ++ [clause]).length :=
+    ⟨index.val, by
+      simpa only [List.length_append, List.length_singleton] using
+        Nat.lt_succ_of_lt index.isLt⟩
+  have liftedOwner : owners.snoc owner lifted = owners index := by
+    simpa only [lifted] using
+      ClauseOwnerDatabase.snoc_previous
+        (clause := clause) owners owner index
+  have liftedClause : (clauses ++ [clause]).get lifted =
+      clauses.get index := by
+    simp [lifted, List.get_eq_getElem,
+      List.getElem_append_left index.isLt]
+  have member := covered lifted (by
+      rw [liftedOwner]
+      exact sourceOwned) (by
+      rw [liftedClause]
+      exact shared)
+  rw [liftedClause] at member
+  exact member
+
+end SharedSourceCovered
+
+/-- The entailment database produced by traversing a colorable trace. -/
+structure TraceEntailmentConstruction
+    {colored : ColoredSignature 2} (inputs : ColoredCNF colored)
+    (source : Fin 2) (interface : CNF colored.toSignature)
+    {clauses : CNF colored.toSignature}
+    {trace : ClauseTrace (ColoredProofLeaf inputs) clauses}
+    {owners : ClauseOwnerDatabase clauses}
+    (coloring : ColorableClauseTrace inputs source trace owners) where
+  database : OwnedEntailmentDatabase inputs source interface clauses owners
+  correct : ColorableTraceEntailment inputs source interface coloring database
+
+namespace ColorableClauseTrace
+
+/-- Traverse the explicit LRAT-like trace and retain only the side-relative
+semantic consequence associated with each owned clause. -/
+noncomputable def buildEntailment
+    {colored : ColoredSignature 2} {inputs : ColoredCNF colored}
+    {source : Fin 2} {clauses : CNF colored.toSignature}
+    {trace : ClauseTrace (ColoredProofLeaf inputs) clauses}
+    {owners : ClauseOwnerDatabase clauses}
+    (coloring : ColorableClauseTrace inputs source trace owners)
+    (interface : CNF colored.toSignature)
+    (covered : SharedSourceCovered source clauses owners interface) :
+    TraceEntailmentConstruction inputs source interface coloring := by
+  induction coloring with
+  | empty =>
+      exact
+        { database := OwnedEntailmentDatabase.empty inputs source interface
+          correct := .empty }
+  | addInput previous owner member inductionHypothesis =>
+      let prior := inductionHypothesis covered.previous
+      exact
+        { database := prior.database.snoc
+            (OwnedClauseEntailment.ofInput inputs source owner interface member)
+          correct := .addInput prior.correct owner member }
+  | addTheory previous annotation inductionHypothesis =>
+      let prior := inductionHypothesis covered.previous
+      exact
+        { database := prior.database.snoc
+            (OwnedClauseEntailment.ofTheory inputs source annotation.side
+              interface annotation.lemma.valid)
+          correct := .addTheory prior.correct annotation }
+  | addDerived previous justification owner clauseColor anchorAllowed
+      parentsAllowed inductionHypothesis =>
+      let prior := inductionHypothesis covered.previous
+      exact
+        { database := prior.database.snoc
+            (OwnedClauseEntailment.ofDerived inputs source owner interface _
+              prior.database justification anchorAllowed parentsAllowed
+              covered.previous)
+          correct := .addDerived prior.correct justification owner clauseColor
+            anchorAllowed parentsAllowed covered.previous }
+
+end ColorableClauseTrace
+
 /-- A proof-relevant selection of the shared source clauses forming the cut.
 It contains every shared source-owned trace clause and no unrelated clauses. -/
 structure SharedInterfaceSelection
@@ -465,6 +566,47 @@ structure SharedInterfaceSelection
     owners index = source →
     (clauses.get index).IsShared colored 0 →
     clauses.get index ∈ interface
+
+namespace SharedInterfaceSelection
+
+/-- Select every shared source-owned occurrence in a finite trace. This is
+noncomputable only because signatures intentionally carry no decidable
+equality or executable color checker; the selected index list itself is
+finite and fixed once the trace has been built. -/
+noncomputable def allSharedSource
+    {colored : ColoredSignature 2} (source : Fin 2)
+    (clauses : CNF colored.toSignature)
+    (owners : ClauseOwnerDatabase clauses) :
+    SharedInterfaceSelection source clauses owners := by
+  classical
+  let selected := (List.finRange clauses.length).filter fun index =>
+    owners index = source ∧ (clauses.get index).IsShared colored 0
+  refine
+    { interface := selected.map clauses.get
+      interface_shared := ?_
+      selected_from_source := ?_
+      contains_shared_source := ?_ }
+  · intro clause member
+    obtain ⟨index, indexMember, rfl⟩ := List.mem_map.mp member
+    have properties : owners index = source ∧
+        (clauses.get index).IsShared colored 0 := by
+      simpa [selected] using indexMember
+    exact properties.2
+  · intro clause member
+    let index := Classical.choose (List.mem_map.mp member)
+    have indexProperties := Classical.choose_spec (List.mem_map.mp member)
+    have selectedProperties : owners index = source ∧
+        (clauses.get index).IsShared colored 0 := by
+      simpa [selected, index] using indexProperties.1
+    exact ⟨index, indexProperties.2, selectedProperties.1⟩
+  · intro index owner shared
+    apply List.mem_map.mpr
+    refine ⟨index, ?_, rfl⟩
+    have properties : owners index = source ∧
+        (clauses.get index).IsShared colored 0 := ⟨owner, shared⟩
+    simpa [selected] using properties
+
+end SharedInterfaceSelection
 
 /-- A colorable refutation together with its incrementally checked semantic
 pruning database. Unlike `PrunedColorableTrace`, this certificate does not
@@ -554,6 +696,41 @@ def interpolant
     pruned.interface_other_unsatisfiable
 
 end SemanticallyPrunedColorableTrace
+
+namespace ColorableClauseTrace
+
+/-- Perform the finite shared-interface selection and semantic pruning pass
+for a colorable trace containing the empty clause. -/
+noncomputable def prune
+    {colored : ColoredSignature 2} {inputs : ColoredCNF colored}
+    {source : Fin 2} {clauses : CNF colored.toSignature}
+    {trace : ClauseTrace (ColoredProofLeaf inputs) clauses}
+    {owners : ClauseOwnerDatabase clauses}
+    (coloring : ColorableClauseTrace inputs source trace owners)
+    (contradiction : ([] : Clause colored.toSignature) ∈ clauses) :
+    SemanticallyPrunedColorableTrace inputs source coloring := by
+  let selection := SharedInterfaceSelection.allSharedSource source clauses owners
+  let construction := coloring.buildEntailment selection.interface
+    selection.contains_shared_source
+  exact
+    { selection := selection
+      database := construction.database
+      construction := construction.correct
+      contradiction := contradiction }
+
+/-- The complete soundness endpoint of the colorable-proof procedure. -/
+noncomputable def interpolantOfRefutation
+    {colored : ColoredSignature 2} {inputs : ColoredCNF colored}
+    {source : Fin 2} {clauses : CNF colored.toSignature}
+    {trace : ClauseTrace (ColoredProofLeaf inputs) clauses}
+    {owners : ClauseOwnerDatabase clauses}
+    (coloring : ColorableClauseTrace inputs source trace owners)
+    (contradiction : ([] : Clause colored.toSignature) ∈ clauses) :
+    IsClausalInterpolantAt inputs source
+      (coloring.prune contradiction).selection.interface :=
+  (coloring.prune contradiction).interpolant
+
+end ColorableClauseTrace
 
 /-- Output of pruning a colorable LRAT trace at its shared A/B cut. Source
 nodes retain explicit source-only derivations; the target slice becomes a
