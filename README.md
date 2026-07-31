@@ -15,7 +15,8 @@ The current formalization provides:
   into general EUF CNFs;
 - colored LRAT-style proof leaves and a color-indexed partial-interpolant
   invariant for clausal proofs;
-- interpolation folds over explicitly colored resolution chains;
+- interpolation folds over explicitly colored resolution chains and builds
+  clause annotations incrementally alongside an LRAT trace;
 - a sound fixed-signature EUF interpolation extractor producing equality Horn
   clauses from alternating A/B congruence-closure certificates;
 - equality and disequality literals, interpreted conjunctively;

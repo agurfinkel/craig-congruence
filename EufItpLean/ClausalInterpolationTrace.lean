@@ -16,6 +16,37 @@ abbrev ClauseAnnotationDatabase (inputs : ColoredCNF colored) (side : Fin 2)
   ∀ index : Fin clauses.length,
     ClauseAnnotation inputs side (clauses.get index)
 
+namespace ClauseAnnotationDatabase
+
+def empty (inputs : ColoredCNF colored) (side : Fin 2) :
+    ClauseAnnotationDatabase inputs side [] :=
+  fun index => nomatch index
+
+/-- Extend an annotation database in the same snoc order as `ClauseTrace`. -/
+noncomputable def snoc
+    {colored : ColoredSignature 2} {inputs : ColoredCNF colored}
+    {side : Fin 2} {clauses : CNF colored.toSignature}
+    (database : ClauseAnnotationDatabase inputs side clauses)
+    {clause : Clause colored.toSignature}
+    (annotation : ClauseAnnotation inputs side clause) :
+    ClauseAnnotationDatabase inputs side (clauses ++ [clause]) := by
+  intro index
+  let normalized : Fin (clauses.length + 1) :=
+    ⟨index.val, by simpa using index.isLt⟩
+  let result := Fin.lastCases
+    (motive := fun position =>
+      ClauseAnnotation inputs side
+        ((clauses ++ [clause]).get
+          ⟨position.val, by
+            simpa only [List.length_append, List.length_singleton] using
+              position.isLt⟩))
+    (by simpa using annotation)
+    (fun previous => by simpa using database previous)
+    normalized
+  simpa [normalized] using result
+
+end ClauseAnnotationDatabase
+
 /-- In a two-color proof, a pivot is owned either by the summarized side or
 by its opposite. Keeping this choice as proof data avoids hidden coloring
 decisions during interpolation. -/
@@ -41,6 +72,50 @@ theorem cast_interpolant
     (annotation.cast equal).interpolant = annotation.interpolant := by
   cases equal
   rfl
+
+/-- Annotation of an input clause owned by the summarized side. -/
+def inputOnSide
+    {colored : ColoredSignature 2} {inputs : ColoredCNF colored}
+    {owner side : Fin 2} {clause : Clause colored.toSignature}
+    (member : clause ∈ inputs.part owner) (equal : owner = side) :
+    ClauseAnnotation inputs side clause := by
+  subst side
+  exact ClauseAnnotation.mk
+    (ClausePartition.owned owner clause
+      (inputs.part_color owner clause member))
+    CNF.falsum
+    (IsPartialInterpolantAt.ofInputOnSide inputs owner clause member)
+
+/-- Annotation of an input clause owned by the side opposite the summarized
+one. -/
+def inputOnOtherSide
+    {colored : ColoredSignature 2} {inputs : ColoredCNF colored}
+    {owner side : Fin 2} {clause : Clause colored.toSignature}
+    (member : clause ∈ inputs.part owner) (equal : owner = side.rev) :
+    ClauseAnnotation inputs side clause := by
+  have reversed : owner.rev = side := by
+    rw [equal]
+    simp
+  subst side
+  exact ClauseAnnotation.mk
+    (ClausePartition.owned owner clause
+      (inputs.part_color owner clause member))
+    []
+    (IsPartialInterpolantAt.ofInputOnOtherSide inputs owner clause member)
+
+/-- Embed a theory leaf whose EUF annotation has the chosen global
+orientation. -/
+def theory
+    {colored : ColoredSignature 2} {inputs : ColoredCNF colored}
+    {side : Fin 2} (annotation : TheoryLemmaAnnotation colored)
+    (equal : annotation.side = side) :
+    ClauseAnnotation inputs side
+      annotation.lemma.toColoredClause.literals := by
+  subst side
+  exact ClauseAnnotation.mk
+    (ClausePartition.ofTheoryLemma annotation.lemma)
+    annotation.interpolant.toCNF
+    (annotation.toPartialInterpolant inputs)
 
 /-- The resolution combination with its result partition fixed in the return
 type. This dependent form is convenient when folding a chain. -/
@@ -243,6 +318,38 @@ noncomputable def derivedAnnotation
 
 end InterpolatedChainJustification
 
+/-- Incremental construction of the annotation database alongside the
+snoc-ordered LRAT trace. Leaf annotations use the input/theory constructors;
+derived annotations are computed from their explicit chain witnesses. -/
+inductive ClauseTraceInterpolation
+    {colored : ColoredSignature 2} (inputs : ColoredCNF colored)
+    (side : Fin 2) :
+    {clauses : CNF colored.toSignature} →
+    (trace : ClauseTrace (ColoredProofLeaf inputs) clauses) →
+    ClauseAnnotationDatabase inputs side clauses → Type 1 where
+  | empty : ClauseTraceInterpolation inputs side .empty
+      (ClauseAnnotationDatabase.empty inputs side)
+  | addLeaf
+      {available : CNF colored.toSignature}
+      {trace : ClauseTrace (ColoredProofLeaf inputs) available}
+      {database : ClauseAnnotationDatabase inputs side available}
+      (previous : ClauseTraceInterpolation inputs side trace database)
+      {clause : Clause colored.toSignature}
+      (leaf : ColoredProofLeaf inputs clause)
+      (annotation : ClauseAnnotation inputs side clause) :
+      ClauseTraceInterpolation inputs side (.addLeaf trace leaf)
+        (database.snoc annotation)
+  | addDerived
+      {available : CNF colored.toSignature}
+      {trace : ClauseTrace (ColoredProofLeaf inputs) available}
+      {database : ClauseAnnotationDatabase inputs side available}
+      (previous : ClauseTraceInterpolation inputs side trace database)
+      {clause : Clause colored.toSignature}
+      (justification : ChainJustification available clause)
+      (interpolation : InterpolatedChainJustification database justification) :
+      ClauseTraceInterpolation inputs side (.addDerived trace justification)
+        (database.snoc interpolation.derivedAnnotation)
+
 /-- A completed interpolation certificate for a colored LRAT-like
 refutation. The database annotations can be built incrementally using the
 leaf constructors and `InterpolatedChainJustification.derivedAnnotation`. -/
@@ -254,6 +361,21 @@ structure InterpolatedClauseRefutation
   contradiction_eq : refutation.clauses.get contradictionIndex = []
 
 namespace InterpolatedClauseRefutation
+
+/-- Package an incrementally constructed database as a completed refutation
+certificate once the empty-clause occurrence is identified. -/
+def ofTrace
+    {colored : ColoredSignature 2} {inputs : ColoredCNF colored}
+    {side : Fin 2} {refutation : ColoredClauseRefutation inputs}
+    {database : ClauseAnnotationDatabase inputs side refutation.clauses}
+    (_construction : ClauseTraceInterpolation inputs side
+      refutation.trace database)
+    (contradictionIndex : Fin refutation.clauses.length)
+    (contradiction_eq : refutation.clauses.get contradictionIndex = []) :
+    InterpolatedClauseRefutation inputs side refutation where
+  database := database
+  contradictionIndex := contradictionIndex
+  contradiction_eq := contradiction_eq
 
 /-- The CNF annotation stored at the explicit empty-clause occurrence. -/
 def interpolant
