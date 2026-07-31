@@ -22,6 +22,14 @@ structure ClauseConsequence (cnf : CNF signature)
 
 namespace ClauseConsequence
 
+def castConclusion
+    (derivation : ClauseConsequence cnf left) (equal : left = right) :
+    ClauseConsequence cnf right where
+  clauses := derivation.clauses
+  trace := derivation.trace
+  conclusionIndex := derivation.conclusionIndex
+  conclusion_eq := derivation.conclusion_eq.trans equal
+
 theorem sound
     {signature : Signature} {cnf : CNF signature}
     {conclusion : Clause signature}
@@ -67,6 +75,51 @@ def ParentAllowed (colored : ColoredSignature 2) (source : Fin 2)
   parentOwner = resultOwner ∨
     (resultOwner = source.rev ∧ parentOwner = source ∧
       parent.IsShared colored 0)
+
+private theorem fin_two_eq_zero_or_one (side : Fin 2) :
+    side = 0 ∨ side = 1 := by
+  refine Fin.cases (Or.inl rfl) ?_ side
+  intro predecessor
+  have equal : predecessor = 0 := Subsingleton.elim _ _
+  subst predecessor
+  exact Or.inr rfl
+
+theorem fin_two_ne_rev (side : Fin 2) : side ≠ side.rev := by
+  rcases fin_two_eq_zero_or_one side with equal | equal
+  · subst side
+    decide
+  · subst side
+    decide
+
+theorem fin_two_eq_or_eq_rev (owner source : Fin 2) :
+    owner = source ∨ owner = source.rev := by
+  rcases fin_two_eq_zero_or_one owner with ownerEqual | ownerEqual <;>
+    rcases fin_two_eq_zero_or_one source with sourceEqual | sourceEqual
+  · exact Or.inl (ownerEqual.trans sourceEqual.symm)
+  · right
+    subst owner
+    subst source
+    rfl
+  · right
+    subst owner
+    subst source
+    rfl
+  · exact Or.inl (ownerEqual.trans sourceEqual.symm)
+
+theorem parent_eq_source_of_result_source
+    (allowed : ParentAllowed colored source source parentOwner parent) :
+    parentOwner = source := by
+  rcases allowed with equal | ⟨impossible, _, _⟩
+  · exact equal
+  · exact False.elim (fin_two_ne_rev source impossible)
+
+theorem parent_of_result_other
+    (allowed : ParentAllowed colored source source.rev parentOwner parent) :
+    parentOwner = source.rev ∨
+      (parentOwner = source ∧ parent.IsShared colored 0) := by
+  rcases allowed with equal | ⟨_, ownerEqual, shared⟩
+  · exact Or.inl equal
+  · exact Or.inr ⟨ownerEqual, shared⟩
 
 namespace ResolutionChain
 
@@ -133,6 +186,40 @@ inductive ColorableClauseTrace
       ColorableClauseTrace inputs source
         (.addDerived trace justification) (owners.snoc owner)
 
+/-- A proof-relevant selection of the shared source clauses forming the cut.
+It contains every shared source-owned trace clause and no unrelated clauses. -/
+structure SharedInterfaceSelection
+    {colored : ColoredSignature 2} (source : Fin 2)
+    (clauses : CNF colored.toSignature)
+    (owners : ClauseOwnerDatabase clauses) where
+  interface : CNF colored.toSignature
+  interface_shared : interface.IsShared colored 0
+  selected_from_source : ∀ clause, clause ∈ interface →
+    { index : Fin clauses.length //
+      clauses.get index = clause ∧ owners index = source }
+  contains_shared_source : ∀ index : Fin clauses.length,
+    owners index = source →
+    (clauses.get index).IsShared colored 0 →
+    clauses.get index ∈ interface
+
+/-- Output of pruning a colorable LRAT trace at its shared A/B cut. Source
+nodes retain explicit source-only derivations; the target slice becomes a
+refutation whose additional inputs are precisely the selected interface. -/
+structure PrunedColorableTrace
+    {colored : ColoredSignature 2} (inputs : ColoredCNF colored)
+    (source : Fin 2)
+    {clauses : CNF colored.toSignature}
+    {trace : ClauseTrace (ColoredProofLeaf inputs) clauses}
+    {owners : ClauseOwnerDatabase clauses}
+    (coloring : ColorableClauseTrace inputs source trace owners) where
+  selection : SharedInterfaceSelection source clauses owners
+  sourceDerivation : ∀ index : Fin clauses.length,
+    owners index = source →
+    ClauseConsequence (inputs.part source) (clauses.get index)
+  targetRefutation : ClauseRefutation
+    (CNF.InputOrTheory
+      (selection.interface ++ inputs.part source.rev))
+
 /-- The semantic cut exposed by a two-color colorable proof.
 
 Every interface clause has an explicit source-side derivation. The target
@@ -148,6 +235,23 @@ structure SharedInterfaceCertificate (inputs : ColoredCNF colored)
   targetRefutation :
     ClauseRefutation
       (CNF.InputOrTheory (interface ++ inputs.part side.rev))
+
+namespace PrunedColorableTrace
+
+/-- Forget the pruning bookkeeping and expose the semantic shared cut. -/
+def toSharedInterfaceCertificate
+    (pruned : PrunedColorableTrace inputs source coloring) :
+    SharedInterfaceCertificate inputs source where
+  interface := pruned.selection.interface
+  interface_shared := pruned.selection.interface_shared
+  sourceDerivation := by
+    intro clause member
+    obtain ⟨index, equal, owner⟩ :=
+      pruned.selection.selected_from_source clause member
+    exact (pruned.sourceDerivation index owner).castConclusion equal
+  targetRefutation := pruned.targetRefutation
+
+end PrunedColorableTrace
 
 namespace SharedInterfaceCertificate
 
