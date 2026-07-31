@@ -1,0 +1,10 @@
+name = "euf-itp-lean"
+version = "0.1.0"
+defaultTargets = ["euf-itp-lean"]
+
+[[lean_lib]]
+name = "EufItpLean"
+
+[[lean_exe]]
+name = "euf-itp-lean"
+root = "Main"
