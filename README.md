@@ -20,6 +20,8 @@ The current formalization provides:
 - direct shared-interface extraction certificates for colorable clausal
   proofs, together with trace-level ownership, dependency restrictions, and
   proof-relevant pruning witnesses;
+- incremental semantic pruning of colorable LRAT-like traces, proving that
+  the selected finite shared interface is a clausal Craig interpolant;
 - a sound fixed-signature EUF interpolation extractor producing equality Horn
   clauses from alternating A/B congruence-closure certificates;
 - equality and disequality literals, interpreted conjunctively;

@@ -64,6 +64,31 @@ def snoc (owners : ClauseOwnerDatabase clauses) (owner : Fin 2) :
     ⟨index.val, by simpa using index.isLt⟩
   exact Fin.lastCases owner owners normalized
 
+@[simp]
+theorem snoc_last (owners : ClauseOwnerDatabase clauses) (owner : Fin 2) :
+    owners.snoc (clause := clause) owner
+      ⟨clauses.length, by simp⟩ = owner := by
+  unfold snoc
+  have equal :
+      (⟨clauses.length, by simp⟩ : Fin (clauses.length + 1)) =
+        Fin.last clauses.length := Fin.ext rfl
+  rw [equal]
+  simp
+
+@[simp]
+theorem snoc_previous (owners : ClauseOwnerDatabase clauses) (owner : Fin 2)
+    (index : Fin clauses.length) :
+    owners.snoc (clause := clause) owner
+      ⟨index.val, by
+        simpa only [List.length_append, List.length_singleton] using
+          Nat.lt_succ_of_lt index.isLt⟩ = owners index := by
+  unfold snoc
+  have equal :
+      (⟨index.val, Nat.lt_succ_of_lt index.isLt⟩ : Fin (clauses.length + 1)) =
+        Fin.castSucc index := Fin.ext rfl
+  rw [equal]
+  simp
+
 end ClauseOwnerDatabase
 
 /-- The dependency restriction at the A/B cut. A clause may use a parent of
@@ -132,9 +157,32 @@ inductive ParentsSatisfy
     ResolutionChain available anchor result → Prop where
   | start : ParentsSatisfy predicate .start
   | resolve
+      {anchor current next : Clause signature}
+      {chain : ResolutionChain available anchor current}
+      {parent : Fin available.length}
       (previous : ParentsSatisfy predicate chain)
+      (step : ResolutionStep current (available.get parent) next)
       (parentSatisfies : predicate parent) :
       ParentsSatisfy predicate (.resolve chain parent step)
+
+/-- Soundness using only the parent indices actually referenced by the
+resolution chain. -/
+theorem sound_of_parents
+    {signature : Signature} {available : CNF signature}
+    {predicate : Fin available.length → Prop}
+    {anchor result : Clause signature}
+    {chain : ResolutionChain available anchor result}
+    (parents : ParentsSatisfy predicate chain)
+    (interpretation : Interpretation signature)
+    (satisfiesAnchor : anchor.Satisfied interpretation)
+    (satisfiesParent : ∀ index, predicate index →
+      (available.get index).Satisfied interpretation) :
+    result.Satisfied interpretation := by
+  induction parents with
+  | start => exact satisfiesAnchor
+  | resolve previous step parentSatisfies previousSound =>
+      exact ResolutionStep.sound step interpretation previousSound
+        (satisfiesParent _ parentSatisfies)
 
 end ResolutionChain
 
@@ -186,6 +234,222 @@ inductive ColorableClauseTrace
       ColorableClauseTrace inputs source
         (.addDerived trace justification) (owners.snoc owner)
 
+/-- Semantic consequence associated with one owned trace clause relative to a
+fixed shared interface. -/
+structure OwnedClauseEntailment (inputs : ColoredCNF colored)
+    (source owner : Fin 2) (interface : CNF colored.toSignature)
+    (clause : Clause colored.toSignature) : Prop where
+  fromSource : owner = source →
+    (inputs.part source).EntailsClause clause
+  fromTarget : owner = source.rev →
+    (interface ++ inputs.part source.rev).EntailsClause clause
+
+abbrev OwnedEntailmentDatabase (inputs : ColoredCNF colored)
+    (source : Fin 2) (interface : CNF colored.toSignature)
+    (clauses : CNF colored.toSignature)
+    (owners : ClauseOwnerDatabase clauses) :=
+  ∀ index : Fin clauses.length,
+    OwnedClauseEntailment inputs source (owners index) interface
+      (clauses.get index)
+
+namespace OwnedEntailmentDatabase
+
+def empty (inputs : ColoredCNF colored) (source : Fin 2)
+    (interface : CNF colored.toSignature) :
+    OwnedEntailmentDatabase inputs source interface []
+      ClauseOwnerDatabase.empty :=
+  fun index => nomatch index
+
+def snoc
+    {colored : ColoredSignature 2} {inputs : ColoredCNF colored}
+    {source : Fin 2} {interface clauses : CNF colored.toSignature}
+    {owners : ClauseOwnerDatabase clauses}
+    (database : OwnedEntailmentDatabase inputs source interface clauses owners)
+    {clause : Clause colored.toSignature} {owner : Fin 2}
+    (entailment : OwnedClauseEntailment inputs source owner interface clause) :
+    OwnedEntailmentDatabase inputs source interface (clauses ++ [clause])
+      (owners.snoc owner) := by
+  intro index
+  by_cases previousPosition : index.val < clauses.length
+  · let previous : Fin clauses.length := ⟨index.val, previousPosition⟩
+    have ownerEqual : owners.snoc owner index = owners previous := by
+      simpa only [previous] using
+        ClauseOwnerDatabase.snoc_previous
+          (clause := clause) owners owner previous
+    have clauseEqual : (clauses ++ [clause]).get index =
+        clauses.get previous := by
+      simp [previous, List.get_eq_getElem,
+        List.getElem_append_left previousPosition]
+    rw [ownerEqual, clauseEqual]
+    exact database previous
+  · have atLast : index.val = clauses.length :=
+      Nat.eq_of_lt_succ_of_not_lt (by simpa using index.isLt)
+        previousPosition
+    have indexEqual : index = ⟨clauses.length, by simp⟩ := Fin.ext atLast
+    subst index
+    simpa only [ClauseOwnerDatabase.snoc_last, List.get_eq_getElem,
+      List.getElem_concat_length] using entailment
+
+end OwnedEntailmentDatabase
+
+namespace OwnedClauseEntailment
+
+def ofInput (inputs : ColoredCNF colored) (source owner : Fin 2)
+    (interface : CNF colored.toSignature)
+    (member : clause ∈ inputs.part owner) :
+    OwnedClauseEntailment inputs source owner interface clause where
+  fromSource := by
+    intro equal interpretation satisfiesSource
+    subst owner
+    exact satisfiesSource clause member
+  fromTarget := by
+    intro equal interpretation satisfiesTarget
+    subst owner
+    exact ((CNF.satisfied_append_iff interpretation _ _).mp
+      satisfiesTarget).2 clause member
+
+def ofTheory (inputs : ColoredCNF colored) (source owner : Fin 2)
+    (interface : CNF colored.toSignature) (valid : clause.Valid) :
+    OwnedClauseEntailment inputs source owner interface clause where
+  fromSource := fun _ interpretation _ => valid interpretation
+  fromTarget := fun _ interpretation _ => valid interpretation
+
+/-- Semantic pruning step for a learned clause. Only the parents referenced by
+the explicit chain are used. Shared source parents are read from the interface
+when proving a target-owned result. -/
+def ofDerived
+    {colored : ColoredSignature 2} (inputs : ColoredCNF colored)
+    (source owner : Fin 2) (interface : CNF colored.toSignature)
+    {available : CNF colored.toSignature}
+    (owners : ClauseOwnerDatabase available)
+    (database : OwnedEntailmentDatabase inputs source interface
+      available owners)
+    {clause : Clause colored.toSignature}
+    (justification : ChainJustification available clause)
+    (anchorAllowed : ParentAllowed colored source owner
+      (owners justification.anchor)
+      (available.get justification.anchor))
+    (parentsAllowed : justification.chain.ParentsSatisfy fun parent =>
+      ParentAllowed colored source owner (owners parent)
+        (available.get parent))
+    (containsSharedSource : ∀ index : Fin available.length,
+      owners index = source →
+      (available.get index).IsShared colored 0 →
+      available.get index ∈ interface) :
+    OwnedClauseEntailment inputs source owner interface clause where
+  fromSource := by
+    intro ownerEqual interpretation satisfiesSource
+    have satisfiesParent : ∀ index,
+        ParentAllowed colored source owner (owners index)
+          (available.get index) →
+        (available.get index).Satisfied interpretation := by
+      intro index allowed
+      apply (database index).fromSource
+        (by simpa [ownerEqual] using
+          parent_eq_source_of_result_source (by
+            simpa [ownerEqual] using allowed))
+      exact satisfiesSource
+    have satisfiesAnchor := satisfiesParent justification.anchor anchorAllowed
+    have satisfiesResolvent := ResolutionChain.sound_of_parents parentsAllowed
+      interpretation satisfiesAnchor satisfiesParent
+    exact Clause.satisfied_of_subsumes justification.subsumes
+      satisfiesResolvent
+  fromTarget := by
+    intro ownerEqual interpretation satisfiesTarget
+    have targetParts :=
+      (CNF.satisfied_append_iff interpretation _ _).mp satisfiesTarget
+    have satisfiesParent : ∀ index,
+        ParentAllowed colored source owner (owners index)
+          (available.get index) →
+        (available.get index).Satisfied interpretation := by
+      intro index allowed
+      have classified := parent_of_result_other (by
+        simpa [ownerEqual] using allowed)
+      rcases classified with targetOwned | ⟨sourceOwned, shared⟩
+      · apply (database index).fromTarget targetOwned
+        exact satisfiesTarget
+      · exact targetParts.1 _
+          (containsSharedSource index sourceOwned shared)
+    have satisfiesAnchor := satisfiesParent justification.anchor anchorAllowed
+    have satisfiesResolvent := ResolutionChain.sound_of_parents parentsAllowed
+      interpretation satisfiesAnchor satisfiesParent
+    exact Clause.satisfied_of_subsumes justification.subsumes
+      satisfiesResolvent
+
+end OwnedClauseEntailment
+
+/-- Incremental semantic pruning proof for a colorable trace and a fixed
+interface. Each derived step supplies the fact that every shared source parent
+it may cross is present in that interface. -/
+inductive ColorableTraceEntailment
+    {colored : ColoredSignature 2} (inputs : ColoredCNF colored)
+    (source : Fin 2) (interface : CNF colored.toSignature) :
+    {clauses : CNF colored.toSignature} →
+    {trace : ClauseTrace (ColoredProofLeaf inputs) clauses} →
+    {owners : ClauseOwnerDatabase clauses} →
+    (coloring : ColorableClauseTrace inputs source trace owners) →
+    OwnedEntailmentDatabase inputs source interface clauses owners → Type 1 where
+  | empty : ColorableTraceEntailment inputs source interface .empty
+      (OwnedEntailmentDatabase.empty inputs source interface)
+  | addInput
+      {available : CNF colored.toSignature}
+      {trace : ClauseTrace (ColoredProofLeaf inputs) available}
+      {owners : ClauseOwnerDatabase available}
+      {coloring : ColorableClauseTrace inputs source trace owners}
+      {database : OwnedEntailmentDatabase inputs source interface
+        available owners}
+      (previous : ColorableTraceEntailment inputs source interface
+        coloring database)
+      (owner : Fin 2) {clause : Clause colored.toSignature}
+      (member : clause ∈ inputs.part owner) :
+      ColorableTraceEntailment inputs source interface
+        (.addInput coloring owner member)
+        (database.snoc
+          (OwnedClauseEntailment.ofInput inputs source owner interface member))
+  | addTheory
+      {available : CNF colored.toSignature}
+      {trace : ClauseTrace (ColoredProofLeaf inputs) available}
+      {owners : ClauseOwnerDatabase available}
+      {coloring : ColorableClauseTrace inputs source trace owners}
+      {database : OwnedEntailmentDatabase inputs source interface
+        available owners}
+      (previous : ColorableTraceEntailment inputs source interface
+        coloring database)
+      (annotation : TheoryLemmaAnnotation colored) :
+      ColorableTraceEntailment inputs source interface
+        (.addTheory coloring annotation)
+        (database.snoc (OwnedClauseEntailment.ofTheory inputs source
+          annotation.side interface annotation.lemma.valid))
+  | addDerived
+      {available : CNF colored.toSignature}
+      {trace : ClauseTrace (ColoredProofLeaf inputs) available}
+      {owners : ClauseOwnerDatabase available}
+      {coloring : ColorableClauseTrace inputs source trace owners}
+      {database : OwnedEntailmentDatabase inputs source interface
+        available owners}
+      (previous : ColorableTraceEntailment inputs source interface
+        coloring database)
+      {clause : Clause colored.toSignature}
+      (justification : ChainJustification available clause)
+      (owner : Fin 2)
+      (clauseColor : Formula.IsColor colored owner clause)
+      (anchorAllowed : ParentAllowed colored source owner
+        (owners justification.anchor)
+        (available.get justification.anchor))
+      (parentsAllowed : justification.chain.ParentsSatisfy fun parent =>
+        ParentAllowed colored source owner (owners parent)
+          (available.get parent))
+      (containsSharedSource : ∀ index : Fin available.length,
+        owners index = source →
+        (available.get index).IsShared colored 0 →
+        available.get index ∈ interface) :
+      ColorableTraceEntailment inputs source interface
+        (.addDerived coloring justification owner clauseColor
+          anchorAllowed parentsAllowed)
+        (database.snoc (OwnedClauseEntailment.ofDerived inputs source owner
+          interface owners database justification anchorAllowed parentsAllowed
+          containsSharedSource))
+
 /-- A proof-relevant selection of the shared source clauses forming the cut.
 It contains every shared source-owned trace clause and no unrelated clauses. -/
 structure SharedInterfaceSelection
@@ -201,6 +465,95 @@ structure SharedInterfaceSelection
     owners index = source →
     (clauses.get index).IsShared colored 0 →
     clauses.get index ∈ interface
+
+/-- A colorable refutation together with its incrementally checked semantic
+pruning database. Unlike `PrunedColorableTrace`, this certificate does not
+rebuild two separate resolution traces: it records exactly the entailment
+needed on each side of the shared cut. -/
+structure SemanticallyPrunedColorableTrace
+    {colored : ColoredSignature 2} (inputs : ColoredCNF colored)
+    (source : Fin 2)
+    {clauses : CNF colored.toSignature}
+    {trace : ClauseTrace (ColoredProofLeaf inputs) clauses}
+    {owners : ClauseOwnerDatabase clauses}
+    (coloring : ColorableClauseTrace inputs source trace owners) where
+  selection : SharedInterfaceSelection source clauses owners
+  database : OwnedEntailmentDatabase inputs source selection.interface
+    clauses owners
+  construction : ColorableTraceEntailment inputs source selection.interface
+    coloring database
+  contradiction : ([] : Clause colored.toSignature) ∈ clauses
+
+namespace SemanticallyPrunedColorableTrace
+
+variable {colored : ColoredSignature 2} {inputs : ColoredCNF colored}
+  {source : Fin 2} {clauses : CNF colored.toSignature}
+  {trace : ClauseTrace (ColoredProofLeaf inputs) clauses}
+  {owners : ClauseOwnerDatabase clauses}
+  {coloring : ColorableClauseTrace inputs source trace owners}
+
+theorem side_entails
+    (pruned : SemanticallyPrunedColorableTrace inputs source coloring) :
+    ∀ interpretation : Interpretation colored.toSignature,
+      (inputs.part source).Satisfied interpretation →
+      pruned.selection.interface.Satisfied interpretation := by
+  intro interpretation satisfiesSource clause member
+  obtain ⟨index, equal, owner⟩ :=
+    pruned.selection.selected_from_source clause member
+  rw [← equal]
+  exact (pruned.database index).fromSource owner interpretation
+    satisfiesSource
+
+theorem interface_other_unsatisfiable
+    (pruned : SemanticallyPrunedColorableTrace inputs source coloring) :
+    ¬∃ interpretation : Interpretation colored.toSignature,
+      pruned.selection.interface.Satisfied interpretation ∧
+      (inputs.part source.rev).Satisfied interpretation := by
+  rintro ⟨interpretation, satisfiesInterface, satisfiesOther⟩
+  obtain ⟨index, emptyEqual⟩ := List.get_of_mem pruned.contradiction
+  have satisfiesTarget :
+      (pruned.selection.interface ++ inputs.part source.rev).Satisfied
+        interpretation :=
+    (CNF.satisfied_append_iff interpretation _ _).mpr
+      ⟨satisfiesInterface, satisfiesOther⟩
+  rcases fin_two_eq_or_eq_rev (owners index) source with
+      sourceOwned | targetOwned
+  · have emptyShared : (clauses.get index).IsShared colored 0 := by
+      rw [emptyEqual]
+      intro literal member
+      exact nomatch member
+    have emptyMember := pruned.selection.contains_shared_source index
+      sourceOwned emptyShared
+    have satisfiesEmpty := satisfiesInterface _ emptyMember
+    rw [emptyEqual] at satisfiesEmpty
+    exact Clause.not_satisfied_nil interpretation satisfiesEmpty
+  · have satisfiesEmpty := (pruned.database index).fromTarget targetOwned
+      interpretation satisfiesTarget
+    rw [emptyEqual] at satisfiesEmpty
+    exact Clause.not_satisfied_nil interpretation satisfiesEmpty
+
+theorem inputs_unsatisfiable
+    (pruned : SemanticallyPrunedColorableTrace inputs source coloring) :
+    inputs.Unsatisfiable := by
+  rintro ⟨interpretation, satisfiesInputs⟩
+  apply pruned.interface_other_unsatisfiable
+  exact ⟨interpretation,
+    pruned.side_entails interpretation (satisfiesInputs source),
+    satisfiesInputs source.rev⟩
+
+/-- Semantic pruning of a colorable LRAT-like refutation yields a clausal
+Craig interpolant: the conjunction of the selected shared source clauses. -/
+def interpolant
+    (pruned : SemanticallyPrunedColorableTrace inputs source coloring) :
+    IsClausalInterpolantAt inputs source
+      pruned.selection.interface where
+  inputs_unsatisfiable := pruned.inputs_unsatisfiable
+  interpolant_shared := pruned.selection.interface_shared
+  side_entails := pruned.side_entails
+  interpolant_other_unsatisfiable :=
+    pruned.interface_other_unsatisfiable
+
+end SemanticallyPrunedColorableTrace
 
 /-- Output of pruning a colorable LRAT trace at its shared A/B cut. Source
 nodes retain explicit source-only derivations; the target slice becomes a
