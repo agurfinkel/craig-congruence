@@ -732,6 +732,42 @@ noncomputable def interpolantOfRefutation
 
 end ColorableClauseTrace
 
+/-- A refutation whose clauses and explicit dependencies satisfy the
+two-color cut discipline. -/
+structure ColorableClauseRefutation
+    {colored : ColoredSignature 2} (inputs : ColoredCNF colored)
+    (source : Fin 2) where
+  refutation : ClauseRefutation (ColoredProofLeaf inputs)
+  owners : ClauseOwnerDatabase refutation.clauses
+  coloring : ColorableClauseTrace inputs source refutation.trace owners
+
+namespace ColorableClauseRefutation
+
+variable {colored : ColoredSignature 2} {inputs : ColoredCNF colored}
+  {source : Fin 2}
+
+noncomputable def prune
+    (refutation : ColorableClauseRefutation inputs source) :
+    SemanticallyPrunedColorableTrace inputs source refutation.coloring :=
+  refutation.coloring.prune refutation.refutation.contradiction
+
+/-- The finite conjunction of all shared source-owned clauses selected from
+the refutation. -/
+noncomputable def interface
+    (refutation : ColorableClauseRefutation inputs source) :
+    CNF colored.toSignature :=
+  refutation.prune.selection.interface
+
+/-- A bundled colorable EUF refutation computes a sound clausal Craig
+interpolant at the requested color cut. -/
+noncomputable def interpolant
+    (refutation : ColorableClauseRefutation inputs source) :
+    IsClausalInterpolantAt inputs source refutation.interface := by
+  unfold interface
+  exact refutation.prune.interpolant
+
+end ColorableClauseRefutation
+
 /-- Output of pruning a colorable LRAT trace at its shared A/B cut. Source
 nodes retain explicit source-only derivations; the target slice becomes a
 refutation whose additional inputs are precisely the selected interface. -/
