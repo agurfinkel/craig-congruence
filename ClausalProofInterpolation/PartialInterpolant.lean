@@ -31,7 +31,7 @@ inductive ColoredProofLeaf (inputs : ColoredCNF sig) :
   | input (side : Fin 2) (member : clause ∈ inputs.part side) :
       ColoredProofLeaf inputs clause
   | theory (annotation : TheoryLemmaAnnotation sig) :
-      ColoredProofLeaf inputs (ColoredClause.literals annotation.lemma)
+      ColoredProofLeaf inputs annotation.lemma.toClause
 
 namespace ColoredProofLeaf
 
@@ -73,7 +73,7 @@ the two colored parts to reorder the original literal occurrences. -/
 structure ClausePartition (sig : ColoredSignature 2)
     (clause : Clause sig)
     extends ColoredClause sig where
-  reconstructs : toColoredClause.literals.Perm clause
+  reconstructs : toColoredClause.toClause.Perm clause
 
 namespace ClausePartition
 
@@ -109,9 +109,9 @@ def owned {sig : ColoredSignature 2} (owner : Fin 2) (clause : Clause sig)
   reconstructs := by
     rcases fin_two_eq_zero_or_one owner with equal | equal
     · subst owner
-      simp [ColoredClause.literals]
+      simp [ColoredClause.toClause]
     · subst owner
-      simp [ColoredClause.literals]
+      simp [ColoredClause.toClause]
 
 @[simp]
 theorem falsifyingPart_owned_owner
@@ -136,7 +136,7 @@ theorem part_eq_nil_of_empty
 /-- The partition already stored by a theory lemma reconstructs its own
 underlying clause. -/
 def ofTheoryLemma (lemma : TheoryLemma sig) :
-    ClausePartition sig (ColoredClause.literals lemma) where
+    ClausePartition sig lemma.toClause where
   toColoredClause := lemma
   reconstructs := List.Perm.refl _
 
@@ -233,7 +233,7 @@ are irrelevant to this local argument. -/
 def toPartialInterpolant (annotation : TheoryLemmaAnnotation sig)
     (inputs : ColoredCNF sig) :
   IsPartialInterpolantAt inputs
-      (ColoredClause.literals annotation.lemma)
+      annotation.lemma.toClause
       (ClausePartition.ofTheoryLemma annotation.lemma)
       annotation.side annotation.interpolant.toCNF where
   interpolant_shared := EqualityHornFormula.toCNF_isShared

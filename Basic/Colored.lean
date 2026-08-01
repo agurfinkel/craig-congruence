@@ -23,7 +23,7 @@ structure ColoredClause (sig : ColoredSignature 2) where
 namespace ColoredClause
 
 /-- The underlying disjunctive clause, forgetting ownership. -/
-def literals (clause : ColoredClause sig) : Clause sig :=
+def toClause (clause : ColoredClause sig) : Clause sig :=
   clause.part 0 ++ clause.part 1
 
 /-- The conjunction which falsifies the literals owned by one color. -/
