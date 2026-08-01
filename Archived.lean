@@ -2,6 +2,6 @@
 
 import Archived.CongruenceGraph
 import Archived.Examples
-import Archived.FiniteNameBasis
+import Archived.FiniteTermNaming
 
 /-! Preserved developments not used by the end-to-end interpolation result. -/
