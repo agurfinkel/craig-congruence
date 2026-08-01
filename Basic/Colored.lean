@@ -29,12 +29,12 @@ def literals (clause : ColoredClause sig) : Clause sig :=
 /-- The conjunction which falsifies the literals owned by one color. -/
 def falsifyingPart (clause : ColoredClause sig) (partition : Fin 2) :
   Formula sig :=
-  (clause.part partition).map Literal.negate
+  (clause.part partition).negate
 
 theorem falsifyingPart_color (clause : ColoredClause sig) (partition : Fin 2) :
   Formula.IsColor sig partition (clause.falsifyingPart partition) := by
   intro literal member
-  simp only [falsifyingPart, List.mem_map] at member
+  simp only [falsifyingPart, Clause.negate, List.mem_map] at member
   obtain ⟨original, originalMember, rfl⟩ := member
   have originalColor := clause.part_color partition original originalMember
   exact ⟨(Literal.colorable_negate_iff sig original).mpr originalColor.1,

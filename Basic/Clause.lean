@@ -31,6 +31,42 @@ end Literal
 
 namespace Clause
 
+/-- The empty clause. -/
+def empty : Clause signature := []
+
+@[simp]
+theorem empty_eq : (empty : Clause signature) = [] := rfl
+
+/-- The unit clause containing only `literal`. -/
+def unit (literal : Literal signature) : Clause signature := [literal]
+
+@[simp]
+theorem unit_eq (literal : Literal signature) : unit literal = [literal] := rfl
+
+/-- Return the unique literal when a clause is syntactically unit. -/
+def isUnit : Clause signature → Option (Literal signature)
+  | [literal] => some literal
+  | _ => none
+
+@[simp]
+theorem isUnit_iff (clause : Clause signature) (literal : Literal signature) :
+    isUnit clause = some literal ↔ clause = [literal] := by
+  cases clause with
+  | nil => simp [isUnit]
+  | cons head tail =>
+      cases tail with
+      | nil => simp [isUnit]
+      | cons next rest => simp [isUnit]
+
+/-- Negate every literal in a clause, producing the conjunctive formula that
+falsifies it. -/
+def negate (clause : Clause signature) : Formula signature :=
+  clause.map Literal.negate
+
+@[simp]
+theorem negate_eq (clause : Clause signature) :
+    clause.negate = clause.map Literal.negate := rfl
+
 /-- An interpretation satisfies a clause when it satisfies one of its
 literals. -/
 def Satisfied (interpretation : Interpretation signature)
@@ -76,7 +112,7 @@ theorem contradicts_falsifying_formula
     {interpretation : Interpretation signature}
     (satisfiesClause : clause.Satisfied interpretation)
     (satisfiesFalsification :
-      Satisfies interpretation (clause.map Literal.negate)) : False := by
+      Satisfies interpretation clause.negate) : False := by
   obtain ⟨literal, member, satisfiesLiteral⟩ := satisfiesClause
   have satisfiesNegation := satisfiesFalsification literal.negate
     (List.mem_map.mpr ⟨literal, member, rfl⟩)

@@ -27,21 +27,27 @@ theorem satisfied_of_subsumes (subsumes : Subsumes stronger weaker)
 
 /-- A selected occurrence of `literal` in a clause. Using an explicit prefix
 and suffix avoids imposing decidable equality on function symbols or terms. -/
-structure Occurrence (literal : Literal signature)
+structure LiteralOccurrence (literal : Literal signature)
     (clause : Clause signature) where
   before : Clause signature
   after : Clause signature
   clause_eq : clause = before ++ literal :: after
 
-namespace Occurrence
+namespace LiteralOccurrence
+
+/-- The selected literal belongs to its clause. -/
+theorem mem (occurrence : LiteralOccurrence literal clause) :
+    literal ∈ clause := by
+  rw [occurrence.clause_eq]
+  simp
 
 /-- Remove exactly the selected literal occurrence. -/
-def without {signature : Signature}
+def remainder {signature : Signature}
     {literal : Literal signature} {clause : Clause signature}
-    (occurrence : Occurrence literal clause) : Clause signature :=
+    (occurrence : LiteralOccurrence literal clause) : Clause signature :=
   occurrence.before ++ occurrence.after
 
-end Occurrence
+end LiteralOccurrence
 
 end Clause
 
@@ -53,10 +59,10 @@ Duplicate-literal normalization is handled by subsumption at the end of a
 chain. -/
 structure ResolutionStep (left right resolvent : Clause signature) where
   pivot : Literal signature
-  leftOccurrence : Clause.Occurrence pivot left
-  rightOccurrence : Clause.Occurrence pivot.negate right
+  leftOccurrence : Clause.LiteralOccurrence pivot left
+  rightOccurrence : Clause.LiteralOccurrence pivot.negate right
   resolvent_eq :
-    resolvent = leftOccurrence.without ++ rightOccurrence.without
+    resolvent = leftOccurrence.remainder ++ rightOccurrence.remainder
 
 namespace ResolutionStep
 
@@ -78,7 +84,7 @@ theorem sound {signature : Signature}
   classical
   by_cases satisfiesPivot : SatisfiesLiteral interpretation step.pivot
   · right
-    rw [Clause.Occurrence.without, Clause.satisfied_append_iff]
+    rw [Clause.LiteralOccurrence.remainder, Clause.satisfied_append_iff]
     rcases satisfiesRight with rightPrefix | complementOrSuffix
     · exact Or.inl rightPrefix
     · rcases complementOrSuffix with satisfiesComplement | rightSuffix
@@ -87,7 +93,7 @@ theorem sound {signature : Signature}
             satisfiesComplement satisfiesPivot)
       · exact Or.inr rightSuffix
   · left
-    rw [Clause.Occurrence.without, Clause.satisfied_append_iff]
+    rw [Clause.LiteralOccurrence.remainder, Clause.satisfied_append_iff]
     rcases satisfiesLeft with leftPrefix | pivotOrSuffix
     · exact Or.inl leftPrefix
     · rcases pivotOrSuffix with satisfiesPivot' | leftSuffix
