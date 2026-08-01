@@ -186,34 +186,37 @@ end ChainJustification
 justification over the preceding database. There is no active-clause state,
 BCP reconstruction, or deletion operation. -/
 inductive ClauseTrace [Clausal.Negation literal]
-    (Leaf : Clausal.Clause literal → Type) : Clausal.CNF literal → Type 1 where
-  | empty : ClauseTrace Leaf []
+    (IsLeaf : Clausal.Clause literal → Type) :
+    Clausal.CNF literal → Type where
+  | empty : ClauseTrace IsLeaf []
   | addLeaf
-      (trace : ClauseTrace Leaf available)
-      (leaf : Leaf clause) :
-      ClauseTrace Leaf (available ++ [clause])
+      (trace : ClauseTrace IsLeaf available)
+      (leafJustification : IsLeaf clause) :
+      ClauseTrace IsLeaf (available ++ [clause])
   | addDerived
-      (trace : ClauseTrace Leaf available)
+      (trace : ClauseTrace IsLeaf available)
       (justification : ChainJustification available clause) :
-      ClauseTrace Leaf (available ++ [clause])
+      ClauseTrace IsLeaf (available ++ [clause])
 
 namespace ClauseTrace
 
 /-- Forward validation of an explicit trace. -/
 theorem sound {signature : Signature}
-    {Leaf : Clause signature → Type} {clauses : CNF signature}
-    (trace : ClauseTrace Leaf clauses)
+    {IsLeaf : Clause signature → Type}
+    {clauses : CNF signature}
+    (trace : ClauseTrace IsLeaf clauses)
     (interpretation : Interpretation signature)
-    (leafSound : ∀ clause, Leaf clause → clause.Satisfied interpretation) :
+    (justificationSound : ∀ clause, IsLeaf clause →
+      clause.Satisfied interpretation) :
     clauses.Satisfied interpretation := by
   induction trace with
   | empty => exact CNF.satisfied_nil interpretation
-  | addLeaf trace leaf traceSound =>
+  | addLeaf trace leafJustification traceSound =>
       apply (CNF.satisfied_append_iff interpretation _ _).mpr
       exact ⟨traceSound, fun clause member => by
         rw [List.mem_singleton] at member
         subst clause
-        exact leafSound _ leaf⟩
+        exact justificationSound _ leafJustification⟩
   | addDerived trace justification traceSound =>
       apply (CNF.satisfied_append_iff interpretation _ _).mpr
       exact ⟨traceSound, fun clause member => by
@@ -225,9 +228,9 @@ end ClauseTrace
 
 /-- A refutation is an explicit trace containing the empty clause. -/
 structure ClauseRefutation [Clausal.Negation literal]
-    (Leaf : Clausal.Clause literal → Type) where
+    (IsLeaf : Clausal.Clause literal → Type) where
   clauses : Clausal.CNF literal
-  trace : ClauseTrace Leaf clauses
+  trace : ClauseTrace IsLeaf clauses
   contradiction : ([] : Clausal.Clause literal) ∈ clauses
 
 namespace CNF
@@ -245,8 +248,8 @@ theorem unsatisfiable_of_refutation
     cnf.Unsatisfiable := by
   rintro ⟨interpretation, satisfiesCnf⟩
   have satisfiesTrace := refutation.trace.sound interpretation (by
-    intro clause leaf
-    cases leaf with
+    intro clause justification
+    cases justification with
     | input member => exact satisfiesCnf clause member
     | theory valid => exact valid interpretation)
   have satisfiesEmpty := satisfiesTrace [] refutation.contradiction
@@ -296,12 +299,12 @@ abbrev ChainJustification [Negation literal]
 
 /-- A generic ordered clausal proof trace. -/
 abbrev ClauseTrace [Negation literal]
-    (Leaf : Clause literal → Type) :=
-  EUF.ClauseTrace Leaf
+    (IsLeaf : Clause literal → Type) :=
+  EUF.ClauseTrace IsLeaf
 
 /-- A generic clausal refutation ending in the empty clause. -/
 abbrev ClauseRefutation [Negation literal]
-    (Leaf : Clause literal → Type) :=
-  EUF.ClauseRefutation Leaf
+    (IsLeaf : Clause literal → Type) :=
+  EUF.ClauseRefutation IsLeaf
 
 end Clausal
