@@ -174,15 +174,6 @@ end EqualityExchangeProof
 
 namespace EqualityExchangeDependencies
 
-theorem satisfies_of_equalities
-    (_dependencies : EqualityExchangeDependencies
-      (naming := naming) formulas producer premises)
-    (interpretation : Interpretation sig)
-    (satisfies : ∀ equality ∈ premises,
-      equality.Satisfied interpretation) :
-    Satisfies interpretation (premises.map Equality.literal) :=
-  (satisfies_equality_literals interpretation premises).mpr satisfies
-
 theorem equalities_shared :
     (dependencies : EqualityExchangeDependencies
       (naming := naming) formulas producer premises) →
@@ -239,7 +230,8 @@ theorem EqualityExchangeProof.interpolant_entailed_by_color_zero
         intro satisfiesEqualities
         have satisfiesPremises :
             Satisfies interpretation (premises.map Equality.literal) :=
-          dependencies.satisfies_of_equalities interpretation satisfiesEqualities
+          (satisfies_equality_literals interpretation premises).mpr
+            satisfiesEqualities
         exact derivation.sound
           ((satisfies_append interpretation (formulas 0)
             (premises.map Equality.literal)).mpr
@@ -270,7 +262,8 @@ theorem EqualityExchangeDependencies.interpolant_entailed_by_color_zero
         intro satisfiesEqualities
         have satisfiesPremises :
             Satisfies interpretation (localPremises.map Equality.literal) :=
-          localDependencies.satisfies_of_equalities interpretation satisfiesEqualities
+          (satisfies_equality_literals interpretation localPremises).mpr
+            satisfiesEqualities
         exact derivation.sound
           ((satisfies_append interpretation (formulas 0)
             (localPremises.map Equality.literal)).mpr
@@ -283,7 +276,7 @@ theorem EqualityExchangeDependencies.interpolant_entailed_by_color_zero
       ⟨headIH interpretation satisfiesColorZero,
         tailIH interpretation satisfiesColorZero⟩
 
-theorem EqualityExchangeProof.equality_entailed_by_color_one
+theorem EqualityExchangeProof.color_one_and_interpolant_entail_equality
     {edge : SharedEqualityEdge naming}
     (proof : EqualityExchangeProof formulas producer edge)
     (interpretation : Interpretation sig)
@@ -521,7 +514,8 @@ theorem interpolant_entailed_by_color_zero
       · apply (EqualityHornFormula.satisfies_singleton interpretation _).mpr
         intro satisfiesEqualities
         have satisfiesPremises :=
-          dependencies.satisfies_of_equalities interpretation satisfiesEqualities
+          (satisfies_equality_literals interpretation premises).mpr
+            satisfiesEqualities
         have equal : interpretation.eval left = interpretation.eval right :=
           derivation.sound
             ((satisfies_append interpretation (formulas 0)
