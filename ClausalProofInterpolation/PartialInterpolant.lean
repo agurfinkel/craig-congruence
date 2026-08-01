@@ -31,10 +31,14 @@ inductive ColoredProofLeaf (inputs : ColoredCNF sig) :
   | input (side : Fin 2) (member : clause ∈ inputs.part side) :
       ColoredProofLeaf inputs clause
   | theory (annotation : TheoryLemmaAnnotation sig) :
-      ColoredProofLeaf inputs annotation.lemma.toClause
+      ColoredProofLeaf inputs annotation.lemma
 
 namespace ColoredProofLeaf
 
+/-- Leaf clauses are satisfied by an interpretation that satisfies all input clauses.
+
+    Follows from: theory lemmas are valid
+-/
 theorem sound {sig : ColoredSignature 2}
     {inputs : ColoredCNF sig}
     {clause : Clause sig}
@@ -55,6 +59,7 @@ abbrev ColoredClauseRefutation (inputs : ColoredCNF sig) :=
 
 namespace ColoredClauseRefutation
 
+/-- existence of colored refutation implies that inputs are unsat -/
 theorem inputs_unsatisfiable
     {sig : ColoredSignature 2} {inputs : ColoredCNF sig}
     (refutation : ColoredClauseRefutation inputs) :

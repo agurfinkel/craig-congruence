@@ -21,6 +21,9 @@ structure TheoryLemma (sig : ColoredSignature 2)
 instance : Coe (TheoryLemma sig) (ColoredClause sig) :=
   ⟨TheoryLemma.toColoredClause⟩
 
+instance : Coe (TheoryLemma sig) (Clause sig) :=
+  ⟨fun lemma => (lemma : ColoredClause sig).toClause⟩
+
 namespace TheoryLemma
 
 /-- Negating a valid theory clause produces an inconsistent conjunction of
