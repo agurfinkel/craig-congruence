@@ -155,46 +155,6 @@ theorem parent_of_result_other
   · exact Or.inl equal
   · exact Or.inr ⟨ownerEqual, shared⟩
 
-namespace ResolutionChain
-
-/-- A predicate holds for every non-anchor parent referenced by a resolution
-chain. -/
-inductive ParentsSatisfy
-    {signature : Signature} {available : CNF signature}
-    (predicate : Fin available.length → Prop) :
-    {anchor result : Clause signature} →
-    ResolutionChain available anchor result → Prop where
-  | start : ParentsSatisfy predicate .start
-  | resolve
-      {anchor current next : Clause signature}
-      {chain : ResolutionChain available anchor current}
-      {parent : Fin available.length}
-      (previous : ParentsSatisfy predicate chain)
-      (step : ResolutionStep current (available.get parent) next)
-      (parentSatisfies : predicate parent) :
-      ParentsSatisfy predicate (.resolve chain parent step)
-
-/-- Soundness using only the parent indices actually referenced by the
-resolution chain. -/
-theorem sound_of_parents
-    {signature : Signature} {available : CNF signature}
-    {predicate : Fin available.length → Prop}
-    {anchor result : Clause signature}
-    {chain : ResolutionChain available anchor result}
-    (parents : ParentsSatisfy predicate chain)
-    (interpretation : Interpretation signature)
-    (satisfiesAnchor : anchor.Satisfied interpretation)
-    (satisfiesParent : ∀ index, predicate index →
-      (available.get index).Satisfied interpretation) :
-    result.Satisfied interpretation := by
-  induction parents with
-  | start => exact satisfiesAnchor
-  | resolve previous step parentSatisfies previousSound =>
-      exact ResolutionStep.sound step interpretation previousSound
-        (satisfiesParent _ parentSatisfies)
-
-end ResolutionChain
-
 /-- A coloring witness parallel to an LRAT trace. Theory leaves take the
 orientation of their EUF annotation. Ordinary and learned clauses are
 colorable in their owning partition, and learned-clause dependencies obey the
