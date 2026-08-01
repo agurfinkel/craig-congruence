@@ -105,7 +105,7 @@ the same owner. A target-side clause may additionally consume a source-owned
 parent, but only when that parent is shared. -/
 def ParentAllowed (sig : ColoredSignature 2) (source : Fin 2)
     (resultOwner parentOwner : Fin 2)
-    (parent : Clause sig.toSignature) : Prop :=
+    (parent : Clause sig) : Prop :=
   parentOwner = resultOwner ∨
     (resultOwner = source.rev ∧ parentOwner = source ∧
       parent.IsShared sig 0)
@@ -202,22 +202,22 @@ shared-interface restriction. -/
 inductive ColorableClauseTrace
     {sig : ColoredSignature 2} (inputs : ColoredCNF sig)
     (source : Fin 2) :
-    {clauses : CNF sig.toSignature} →
+    {clauses : CNF sig} →
     (trace : ClauseTrace (ColoredProofLeaf inputs) clauses) →
     ClauseOwnerDatabase clauses → Type 1 where
   | empty : ColorableClauseTrace inputs source .empty
       ClauseOwnerDatabase.empty
   | addInput
-      {available : CNF sig.toSignature}
+      {available : CNF sig}
       {trace : ClauseTrace (ColoredProofLeaf inputs) available}
       {owners : ClauseOwnerDatabase available}
       (previous : ColorableClauseTrace inputs source trace owners)
-      (owner : Fin 2) {clause : Clause sig.toSignature}
+      (owner : Fin 2) {clause : Clause sig}
       (member : clause ∈ inputs.part owner) :
       ColorableClauseTrace inputs source
         (.addLeaf trace (.input owner member)) (owners.snoc owner)
   | addTheory
-      {available : CNF sig.toSignature}
+      {available : CNF sig}
       {trace : ClauseTrace (ColoredProofLeaf inputs) available}
       {owners : ClauseOwnerDatabase available}
       (previous : ColorableClauseTrace inputs source trace owners)
@@ -226,11 +226,11 @@ inductive ColorableClauseTrace
         (.addLeaf trace (.theory annotation))
         (owners.snoc annotation.side)
   | addDerived
-      {available : CNF sig.toSignature}
+      {available : CNF sig}
       {trace : ClauseTrace (ColoredProofLeaf inputs) available}
       {owners : ClauseOwnerDatabase available}
       (previous : ColorableClauseTrace inputs source trace owners)
-      {clause : Clause sig.toSignature}
+      {clause : Clause sig}
       (justification : ChainJustification available clause)
       (owner : Fin 2)
       (clauseColor : Formula.IsColor sig owner clause)
@@ -246,16 +246,16 @@ inductive ColorableClauseTrace
 /-- Semantic consequence associated with one owned trace clause relative to a
 fixed shared interface. -/
 structure OwnedClauseEntailment (inputs : ColoredCNF sig)
-    (source owner : Fin 2) (interface : CNF sig.toSignature)
-    (clause : Clause sig.toSignature) : Prop where
+    (source owner : Fin 2) (interface : CNF sig)
+    (clause : Clause sig) : Prop where
   fromSource : owner = source →
     (inputs.part source).EntailsClause clause
   fromTarget : owner = source.rev →
     (interface ++ inputs.part source.rev).EntailsClause clause
 
 abbrev OwnedEntailmentDatabase (inputs : ColoredCNF sig)
-    (source : Fin 2) (interface : CNF sig.toSignature)
-    (clauses : CNF sig.toSignature)
+    (source : Fin 2) (interface : CNF sig)
+    (clauses : CNF sig)
     (owners : ClauseOwnerDatabase clauses) :=
   ∀ index : Fin clauses.length,
     OwnedClauseEntailment inputs source (owners index) interface
@@ -264,17 +264,17 @@ abbrev OwnedEntailmentDatabase (inputs : ColoredCNF sig)
 namespace OwnedEntailmentDatabase
 
 def empty (inputs : ColoredCNF sig) (source : Fin 2)
-    (interface : CNF sig.toSignature) :
+    (interface : CNF sig) :
     OwnedEntailmentDatabase inputs source interface []
       ClauseOwnerDatabase.empty :=
   fun index => nomatch index
 
 def snoc
     {sig : ColoredSignature 2} {inputs : ColoredCNF sig}
-    {source : Fin 2} {interface clauses : CNF sig.toSignature}
+    {source : Fin 2} {interface clauses : CNF sig}
     {owners : ClauseOwnerDatabase clauses}
     (database : OwnedEntailmentDatabase inputs source interface clauses owners)
-    {clause : Clause sig.toSignature} {owner : Fin 2}
+    {clause : Clause sig} {owner : Fin 2}
     (entailment : OwnedClauseEntailment inputs source owner interface clause) :
     OwnedEntailmentDatabase inputs source interface (clauses ++ [clause])
       (owners.snoc owner) := by
@@ -304,7 +304,7 @@ end OwnedEntailmentDatabase
 namespace OwnedClauseEntailment
 
 def ofInput (inputs : ColoredCNF sig) (source owner : Fin 2)
-    (interface : CNF sig.toSignature)
+    (interface : CNF sig)
     (member : clause ∈ inputs.part owner) :
     OwnedClauseEntailment inputs source owner interface clause where
   fromSource := by
@@ -318,7 +318,7 @@ def ofInput (inputs : ColoredCNF sig) (source owner : Fin 2)
       satisfiesTarget).2 clause member
 
 def ofTheory (inputs : ColoredCNF sig) (source owner : Fin 2)
-    (interface : CNF sig.toSignature) (valid : clause.Valid) :
+    (interface : CNF sig) (valid : clause.Valid) :
     OwnedClauseEntailment inputs source owner interface clause where
   fromSource := fun _ interpretation _ => valid interpretation
   fromTarget := fun _ interpretation _ => valid interpretation
@@ -328,12 +328,12 @@ the explicit chain are used. Shared source parents are read from the interface
 when proving a target-owned result. -/
 def ofDerived
     {sig : ColoredSignature 2} (inputs : ColoredCNF sig)
-    (source owner : Fin 2) (interface : CNF sig.toSignature)
-    {available : CNF sig.toSignature}
+    (source owner : Fin 2) (interface : CNF sig)
+    {available : CNF sig}
     (owners : ClauseOwnerDatabase available)
     (database : OwnedEntailmentDatabase inputs source interface
       available owners)
-    {clause : Clause sig.toSignature}
+    {clause : Clause sig}
     (justification : ChainJustification available clause)
     (anchorAllowed : ParentAllowed sig source owner
       (owners justification.anchor)
@@ -392,8 +392,8 @@ interface. Each derived step supplies the fact that every shared source parent
 it may cross is present in that interface. -/
 inductive ColorableTraceEntailment
     {sig : ColoredSignature 2} (inputs : ColoredCNF sig)
-    (source : Fin 2) (interface : CNF sig.toSignature) :
-    {clauses : CNF sig.toSignature} →
+    (source : Fin 2) (interface : CNF sig) :
+    {clauses : CNF sig} →
     {trace : ClauseTrace (ColoredProofLeaf inputs) clauses} →
     {owners : ClauseOwnerDatabase clauses} →
     (coloring : ColorableClauseTrace inputs source trace owners) →
@@ -401,7 +401,7 @@ inductive ColorableTraceEntailment
   | empty : ColorableTraceEntailment inputs source interface .empty
       (OwnedEntailmentDatabase.empty inputs source interface)
   | addInput
-      {available : CNF sig.toSignature}
+      {available : CNF sig}
       {trace : ClauseTrace (ColoredProofLeaf inputs) available}
       {owners : ClauseOwnerDatabase available}
       {coloring : ColorableClauseTrace inputs source trace owners}
@@ -409,14 +409,14 @@ inductive ColorableTraceEntailment
         available owners}
       (previous : ColorableTraceEntailment inputs source interface
         coloring database)
-      (owner : Fin 2) {clause : Clause sig.toSignature}
+      (owner : Fin 2) {clause : Clause sig}
       (member : clause ∈ inputs.part owner) :
       ColorableTraceEntailment inputs source interface
         (.addInput coloring owner member)
         (database.snoc
           (OwnedClauseEntailment.ofInput inputs source owner interface member))
   | addTheory
-      {available : CNF sig.toSignature}
+      {available : CNF sig}
       {trace : ClauseTrace (ColoredProofLeaf inputs) available}
       {owners : ClauseOwnerDatabase available}
       {coloring : ColorableClauseTrace inputs source trace owners}
@@ -430,7 +430,7 @@ inductive ColorableTraceEntailment
         (database.snoc (OwnedClauseEntailment.ofTheory inputs source
           annotation.side interface annotation.lemma.valid))
   | addDerived
-      {available : CNF sig.toSignature}
+      {available : CNF sig}
       {trace : ClauseTrace (ColoredProofLeaf inputs) available}
       {owners : ClauseOwnerDatabase available}
       {coloring : ColorableClauseTrace inputs source trace owners}
@@ -438,7 +438,7 @@ inductive ColorableTraceEntailment
         available owners}
       (previous : ColorableTraceEntailment inputs source interface
         coloring database)
-      {clause : Clause sig.toSignature}
+      {clause : Clause sig}
       (justification : ChainJustification available clause)
       (owner : Fin 2)
       (clauseColor : Formula.IsColor sig owner clause)
@@ -463,9 +463,9 @@ inductive ColorableTraceEntailment
 interface. -/
 def SharedSourceCovered
     {sig : ColoredSignature 2} (source : Fin 2)
-    (clauses : CNF sig.toSignature)
+    (clauses : CNF sig)
     (owners : ClauseOwnerDatabase clauses)
-    (interface : CNF sig.toSignature) : Prop :=
+    (interface : CNF sig) : Prop :=
   ∀ index : Fin clauses.length,
     owners index = source →
     (clauses.get index).IsShared sig 0 →
@@ -476,9 +476,9 @@ namespace SharedSourceCovered
 /-- Coverage of a snoc database restricts to its previous prefix. -/
 theorem previous
     {sig : ColoredSignature 2} {source : Fin 2}
-    {clauses interface : CNF sig.toSignature}
+    {clauses interface : CNF sig}
     {owners : ClauseOwnerDatabase clauses}
-    {clause : Clause sig.toSignature} {owner : Fin 2}
+    {clause : Clause sig} {owner : Fin 2}
     (covered : SharedSourceCovered source (clauses ++ [clause])
       (owners.snoc owner) interface) :
     SharedSourceCovered source clauses owners interface := by
@@ -508,8 +508,8 @@ end SharedSourceCovered
 /-- The entailment database produced by traversing a colorable trace. -/
 structure TraceEntailmentConstruction
     {sig : ColoredSignature 2} (inputs : ColoredCNF sig)
-    (source : Fin 2) (interface : CNF sig.toSignature)
-    {clauses : CNF sig.toSignature}
+    (source : Fin 2) (interface : CNF sig)
+    {clauses : CNF sig}
     {trace : ClauseTrace (ColoredProofLeaf inputs) clauses}
     {owners : ClauseOwnerDatabase clauses}
     (coloring : ColorableClauseTrace inputs source trace owners) where
@@ -522,11 +522,11 @@ namespace ColorableClauseTrace
 semantic consequence associated with each owned clause. -/
 noncomputable def buildEntailment
     {sig : ColoredSignature 2} {inputs : ColoredCNF sig}
-    {source : Fin 2} {clauses : CNF sig.toSignature}
+    {source : Fin 2} {clauses : CNF sig}
     {trace : ClauseTrace (ColoredProofLeaf inputs) clauses}
     {owners : ClauseOwnerDatabase clauses}
     (coloring : ColorableClauseTrace inputs source trace owners)
-    (interface : CNF sig.toSignature)
+    (interface : CNF sig)
     (covered : SharedSourceCovered source clauses owners interface) :
     TraceEntailmentConstruction inputs source interface coloring := by
   induction coloring with
@@ -564,9 +564,9 @@ end ColorableClauseTrace
 It contains every shared source-owned trace clause and no unrelated clauses. -/
 structure SharedInterfaceSelection
     {sig : ColoredSignature 2} (source : Fin 2)
-    (clauses : CNF sig.toSignature)
+    (clauses : CNF sig)
     (owners : ClauseOwnerDatabase clauses) where
-  interface : CNF sig.toSignature
+  interface : CNF sig
   interface_shared : interface.IsShared sig 0
   selected_from_source : ∀ clause, clause ∈ interface →
     { index : Fin clauses.length //
@@ -584,7 +584,7 @@ equality or executable color checker; the selected index list itself is
 finite and fixed once the trace has been built. -/
 noncomputable def allSharedSource
     {sig : ColoredSignature 2} (source : Fin 2)
-    (clauses : CNF sig.toSignature)
+    (clauses : CNF sig)
     (owners : ClauseOwnerDatabase clauses) :
     SharedInterfaceSelection source clauses owners := by
   classical
@@ -624,7 +624,7 @@ needed on each side of the shared cut. -/
 structure SemanticallyPrunedColorableTrace
     {sig : ColoredSignature 2} (inputs : ColoredCNF sig)
     (source : Fin 2)
-    {clauses : CNF sig.toSignature}
+    {clauses : CNF sig}
     {trace : ClauseTrace (ColoredProofLeaf inputs) clauses}
     {owners : ClauseOwnerDatabase clauses}
     (coloring : ColorableClauseTrace inputs source trace owners) where
@@ -633,19 +633,19 @@ structure SemanticallyPrunedColorableTrace
     clauses owners
   construction : ColorableTraceEntailment inputs source selection.interface
     coloring database
-  contradiction : ([] : Clause sig.toSignature) ∈ clauses
+  contradiction : ([] : Clause sig) ∈ clauses
 
 namespace SemanticallyPrunedColorableTrace
 
 variable {sig : ColoredSignature 2} {inputs : ColoredCNF sig}
-  {source : Fin 2} {clauses : CNF sig.toSignature}
+  {source : Fin 2} {clauses : CNF sig}
   {trace : ClauseTrace (ColoredProofLeaf inputs) clauses}
   {owners : ClauseOwnerDatabase clauses}
   {coloring : ColorableClauseTrace inputs source trace owners}
 
 theorem side_entails
     (pruned : SemanticallyPrunedColorableTrace inputs source coloring) :
-    ∀ interpretation : Interpretation sig.toSignature,
+    ∀ interpretation : Interpretation sig,
       (inputs.part source).Satisfied interpretation →
       pruned.selection.interface.Satisfied interpretation := by
   intro interpretation satisfiesSource clause member
@@ -657,7 +657,7 @@ theorem side_entails
 
 theorem interface_other_unsatisfiable
     (pruned : SemanticallyPrunedColorableTrace inputs source coloring) :
-    ¬∃ interpretation : Interpretation sig.toSignature,
+    ¬∃ interpretation : Interpretation sig,
       pruned.selection.interface.Satisfied interpretation ∧
       (inputs.part source.rev).Satisfied interpretation := by
   rintro ⟨interpretation, satisfiesInterface, satisfiesOther⟩
@@ -712,11 +712,11 @@ namespace ColorableClauseTrace
 for a colorable trace containing the empty clause. -/
 noncomputable def prune
     {sig : ColoredSignature 2} {inputs : ColoredCNF sig}
-    {source : Fin 2} {clauses : CNF sig.toSignature}
+    {source : Fin 2} {clauses : CNF sig}
     {trace : ClauseTrace (ColoredProofLeaf inputs) clauses}
     {owners : ClauseOwnerDatabase clauses}
     (coloring : ColorableClauseTrace inputs source trace owners)
-    (contradiction : ([] : Clause sig.toSignature) ∈ clauses) :
+    (contradiction : ([] : Clause sig) ∈ clauses) :
     SemanticallyPrunedColorableTrace inputs source coloring := by
   let selection := SharedInterfaceSelection.allSharedSource source clauses owners
   let construction := coloring.buildEntailment selection.interface
@@ -730,11 +730,11 @@ noncomputable def prune
 /-- The complete soundness endpoint of the colorable-proof procedure. -/
 noncomputable def interpolantOfRefutation
     {sig : ColoredSignature 2} {inputs : ColoredCNF sig}
-    {source : Fin 2} {clauses : CNF sig.toSignature}
+    {source : Fin 2} {clauses : CNF sig}
     {trace : ClauseTrace (ColoredProofLeaf inputs) clauses}
     {owners : ClauseOwnerDatabase clauses}
     (coloring : ColorableClauseTrace inputs source trace owners)
-    (contradiction : ([] : Clause sig.toSignature) ∈ clauses) :
+    (contradiction : ([] : Clause sig) ∈ clauses) :
     IsClausalInterpolantAt inputs source
       (coloring.prune contradiction).selection.interface :=
   (coloring.prune contradiction).interpolant
@@ -764,7 +764,7 @@ noncomputable def prune
 the refutation. -/
 noncomputable def interface
     (refutation : ColorableClauseRefutation inputs source) :
-    CNF sig.toSignature :=
+    CNF sig :=
   refutation.prune.selection.interface
 
 /-- A bundled colorable EUF refutation computes a sound clausal Craig
@@ -783,7 +783,7 @@ refutation whose additional inputs are precisely the selected interface. -/
 structure PrunedColorableTrace
     {sig : ColoredSignature 2} (inputs : ColoredCNF sig)
     (source : Fin 2)
-    {clauses : CNF sig.toSignature}
+    {clauses : CNF sig}
     {trace : ClauseTrace (ColoredProofLeaf inputs) clauses}
     {owners : ClauseOwnerDatabase clauses}
     (coloring : ColorableClauseTrace inputs source trace owners) where
@@ -803,7 +803,7 @@ trace-coloring pass will construct this certificate by cutting every shared
 source clause consumed by target reasoning. -/
 structure SharedInterfaceCertificate (inputs : ColoredCNF sig)
     (side : Fin 2) where
-  interface : CNF sig.toSignature
+  interface : CNF sig
   interface_shared : CNF.IsShared sig 0 interface
   sourceDerivation : ∀ clause, clause ∈ interface →
     ClauseConsequence (inputs.part side) clause
@@ -834,7 +834,7 @@ theorem side_entails
     {sig : ColoredSignature 2} {inputs : ColoredCNF sig}
     {side : Fin 2}
     (certificate : SharedInterfaceCertificate inputs side) :
-    ∀ interpretation : Interpretation sig.toSignature,
+    ∀ interpretation : Interpretation sig,
       (inputs.part side).Satisfied interpretation →
       certificate.interface.Satisfied interpretation := by
   intro interpretation satisfiesSide clause member
@@ -845,7 +845,7 @@ theorem interface_other_unsatisfiable
     {sig : ColoredSignature 2} {inputs : ColoredCNF sig}
     {side : Fin 2}
     (certificate : SharedInterfaceCertificate inputs side) :
-    ¬∃ interpretation : Interpretation sig.toSignature,
+    ¬∃ interpretation : Interpretation sig,
       certificate.interface.Satisfied interpretation ∧
       (inputs.part side.rev).Satisfied interpretation := by
   rintro ⟨interpretation, satisfiesInterface, satisfiesOther⟩

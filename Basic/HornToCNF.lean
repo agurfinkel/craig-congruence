@@ -111,7 +111,7 @@ end EqualityHornFormula
 namespace Clause
 
 def IsShared (sig : ColoredSignature k) (boundary : Fin (k - 1))
-  (clause : Clause sig.toSignature) : Prop :=
+  (clause : Clause sig) : Prop :=
   ∀ literal ∈ clause, literal.HasColor sig (.shared boundary)
 
 end Clause
@@ -119,7 +119,7 @@ end Clause
 namespace CNF
 
 def IsShared (sig : ColoredSignature k) (boundary : Fin (k - 1))
-  (cnf : CNF sig.toSignature) : Prop :=
+  (cnf : CNF sig) : Prop :=
   ∀ clause ∈ cnf, clause.IsShared sig boundary
 
 @[simp]
@@ -132,7 +132,7 @@ theorem isShared_nil (sig : ColoredSignature k)
 @[simp]
 theorem isShared_falsum (sig : ColoredSignature k)
     (boundary : Fin (k - 1)) :
-    IsShared sig boundary (falsum : CNF sig.toSignature) := by
+    IsShared sig boundary (falsum : CNF sig) := by
   intro clause clauseMember literal literalMember
   have clauseEmpty : clause = [] := by
     simpa [falsum] using clauseMember
@@ -142,7 +142,7 @@ theorem isShared_falsum (sig : ColoredSignature k)
 @[simp]
 theorem isShared_append (sig : ColoredSignature k)
     (boundary : Fin (k - 1))
-    (left right : CNF sig.toSignature) :
+    (left right : CNF sig) :
     IsShared sig boundary (left ++ right) ↔
       IsShared sig boundary left ∧ IsShared sig boundary right := by
   constructor

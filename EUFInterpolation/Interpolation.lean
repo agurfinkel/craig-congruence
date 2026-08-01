@@ -17,8 +17,8 @@ formulas when it satisfies the standard two-formula interpolation conditions.
 The signature has exactly two formula positions: position `0` is A, position
 `1` is B, and boundary `0` is their shared color. -/
 structure IsInterpolant (sig : ColoredSignature 2)
-    (phi1 phi2 : Formula sig.toSignature)
-    (interpolant : EqualityHornFormula sig.toSignature) : Prop where
+    (phi1 phi2 : Formula sig)
+    (interpolant : EqualityHornFormula sig) : Prop where
   /-- The first input contains only A-local and shared literals. -/
   phi1_color : Formula.IsColor sig 0 phi1
   /-- The second input contains only B-local and shared literals. -/

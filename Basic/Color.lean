@@ -41,12 +41,16 @@ end Color
 structure ColoredSignature (k : Nat) extends Signature where
   colorOf {arity : Nat} : Function arity → Color k
 
+/-- Forget the colors attached to a signature's function symbols. -/
+instance : CoeOut (ColoredSignature k) Signature where
+  coe := ColoredSignature.toSignature
+
 namespace Term
 
 /-- A term is available in a formula when every symbol occurring in it is
 allowed in that formula. -/
 def AvailableIn (sig : ColoredSignature k) (partition : Fin k) :
-  Term sig.toSignature → Prop
+  Term sig → Prop
   | .app function arguments =>
       (sig.colorOf function).Allows partition ∧
         ∀ i, AvailableIn sig partition (arguments i)
@@ -55,13 +59,13 @@ def AvailableIn (sig : ColoredSignature k) (partition : Fin k) :
 contain all symbols in the term. This realizes the "most restrictive symbol"
 rule by intersecting the availability of all occurring symbols. -/
 def HasColor (sig : ColoredSignature k)
-  (term : Term sig.toSignature) (color : Color k) : Prop :=
+  (term : Term sig) (color : Color k) : Prop :=
   ∀ partition, AvailableIn sig partition term ↔ color.Allows partition
 
 /-- A term is colorable when its symbols have a nonempty availability that is
 represented by a local or adjacent-shared color. -/
 def Colorable (sig : ColoredSignature k)
-  (term : Term sig.toSignature) : Prop :=
+  (term : Term sig) : Prop :=
   ∃ color, HasColor sig term color
 
 end Term
@@ -70,38 +74,38 @@ namespace Literal
 
 /-- A literal is available in a partition when both of its terms are. -/
 def AvailableIn (coloredSig : ColoredSignature k) (partition : Fin k) :
-  Literal coloredSig.toSignature → Prop
+  Literal coloredSig → Prop
   | .eq left right | .ne left right =>
       left.AvailableIn coloredSig partition ∧ right.AvailableIn coloredSig partition
 
 /-- The color of a literal is the most restrictive color among all symbols in
 its two terms. -/
 def HasColor (sig : ColoredSignature k)
-  (literal : Literal sig.toSignature) (color : Color k) : Prop :=
+  (literal : Literal sig) (color : Color k) : Prop :=
   ∀ partition, AvailableIn sig partition literal ↔ color.Allows partition
 
 /-- A literal is colorable when it has a local or adjacent-shared color. -/
 def Colorable (sig : ColoredSignature k)
-  (literal : Literal sig.toSignature) : Prop :=
+  (literal : Literal sig) : Prop :=
   ∃ color, HasColor sig literal color
 
 @[simp]
 theorem availableIn_negate_iff (sig : ColoredSignature k)
-  (partition : Fin k) (literal : Literal sig.toSignature) :
+  (partition : Fin k) (literal : Literal sig) :
   literal.negate.AvailableIn sig partition ↔
     literal.AvailableIn sig partition := by
   cases literal <;> rfl
 
 @[simp]
 theorem hasColor_negate_iff (sig : ColoredSignature k)
-  (literal : Literal sig.toSignature) (color : Color k) :
+  (literal : Literal sig) (color : Color k) :
   literal.negate.HasColor sig color ↔
     literal.HasColor sig color := by
   simp only [HasColor, availableIn_negate_iff]
 
 @[simp]
 theorem colorable_negate_iff (sig : ColoredSignature k)
-  (literal : Literal sig.toSignature) :
+  (literal : Literal sig) :
   literal.negate.Colorable sig ↔ literal.Colorable sig := by
   simp only [Colorable, hasColor_negate_iff]
 
@@ -112,14 +116,14 @@ namespace Formula
 /-- A formula is shared across a boundary when all of its literals have that
 shared color. In particular, the empty formula is shared. -/
 def IsShared (sig : ColoredSignature k) (boundary : Fin (k - 1))
-  (formula : Formula sig.toSignature) : Prop :=
+  (formula : Formula sig) : Prop :=
   ∀ literal ∈ formula, literal.HasColor sig (.shared boundary)
 
 /-- A formula has color `i` when every literal is colorable and may occur in
 formula `i`. Its literals may freely mix local-`i` and compatible shared
 colors. -/
 def IsColor (sig : ColoredSignature k) (partition : Fin k)
-  (formula : Formula sig.toSignature) : Prop :=
+  (formula : Formula sig) : Prop :=
   ∀ literal ∈ formula,
     literal.Colorable sig ∧ literal.AvailableIn sig partition
 

@@ -46,7 +46,7 @@ shared Horn formula sufficient to contradict the other side.
 
 `Fin.rev side` is the other formula position in the two-color setting. -/
 structure IsInterpolantAt (lemma : TheoryLemma sig) (side : Fin 2)
-    (interpolant : EqualityHornFormula sig.toSignature) : Prop where
+    (interpolant : EqualityHornFormula sig) : Prop where
   interpolant_shared :
     EqualityHornFormula.IsShared sig 0 interpolant
   side_entails :
@@ -61,7 +61,7 @@ two parts of the negated clause. -/
 def IsInterpolantAt.toIsInterpolant
     {sig : ColoredSignature 2}
     {lemma : TheoryLemma sig}
-    {interpolant : EqualityHornFormula sig.toSignature}
+    {interpolant : EqualityHornFormula sig}
     (annotation : IsInterpolantAt lemma 0 interpolant) :
     IsInterpolant sig
       (ColoredClause.falsifyingPart lemma.toColoredClause 0)
@@ -81,7 +81,7 @@ existing congruence-closure interpolation procedure can be used unchanged. -/
 def IsInterpolantAt.ofIsInterpolant
     {sig : ColoredSignature 2}
     {lemma : TheoryLemma sig}
-    {interpolant : EqualityHornFormula sig.toSignature}
+    {interpolant : EqualityHornFormula sig}
     (isInterpolant :
       IsInterpolant sig
         (ColoredClause.falsifyingPart lemma.toColoredClause 0)
@@ -96,7 +96,7 @@ def IsInterpolantAt.ofIsInterpolant
 theorem isInterpolantAt_zero_iff
     {sig : ColoredSignature 2}
     {lemma : TheoryLemma sig}
-    {interpolant : EqualityHornFormula sig.toSignature} :
+    {interpolant : EqualityHornFormula sig} :
     IsInterpolantAt lemma 0 interpolant ↔
       IsInterpolant sig
         (ColoredClause.falsifyingPart lemma.toColoredClause 0)
@@ -107,12 +107,12 @@ theorem isInterpolantAt_zero_iff
 /-- Convenience name for the color-0 orientation. The primary definition is
 the color-indexed `IsInterpolantAt`. -/
 abbrev IsAInterpolant (lemma : TheoryLemma sig)
-    (interpolant : EqualityHornFormula sig.toSignature) : Prop :=
+    (interpolant : EqualityHornFormula sig) : Prop :=
   IsInterpolantAt lemma 0 interpolant
 
 /-- Convenience name for the color-1 orientation. -/
 abbrev IsBInterpolant (lemma : TheoryLemma sig)
-    (interpolant : EqualityHornFormula sig.toSignature) : Prop :=
+    (interpolant : EqualityHornFormula sig) : Prop :=
   IsInterpolantAt lemma 1 interpolant
 
 end TheoryLemma

@@ -27,7 +27,7 @@ def Satisfied (interpretation : Interpretation signature)
   interpretation.eval equality.left = interpretation.eval equality.right
 
 def IsShared (sig : ColoredSignature k) (boundary : Fin (k - 1))
-  (equality : Equality sig.toSignature) : Prop :=
+  (equality : Equality sig) : Prop :=
   equality.literal.HasColor sig (.shared boundary)
 
 @[simp]
@@ -56,7 +56,7 @@ def Satisfied (interpretation : Interpretation signature)
     | none => False
 
 def IsShared (sig : ColoredSignature k) (boundary : Fin (k - 1))
-  (clause : EqualityHornClause sig.toSignature) : Prop :=
+  (clause : EqualityHornClause sig) : Prop :=
   (∀ equality ∈ clause.premises, equality.IsShared sig boundary) ∧
     ∀ equality ∈ clause.conclusion, equality.IsShared sig boundary
 
@@ -101,7 +101,7 @@ def UnsatisfiableWithEqualityHornFormula
 namespace EqualityHornFormula
 
 def IsShared (sig : ColoredSignature k) (boundary : Fin (k - 1))
-  (formula : EqualityHornFormula sig.toSignature) : Prop :=
+  (formula : EqualityHornFormula sig) : Prop :=
   ∀ clause ∈ formula, clause.IsShared sig boundary
 
 /-- The always-false Horn formula, represented by `true ⇒ false`. -/
@@ -120,7 +120,7 @@ theorem not_satisfies_falsum
 theorem isShared_falsum (sig : ColoredSignature k)
     (boundary : Fin (k - 1)) :
     IsShared sig boundary
-      (falsum : EqualityHornFormula sig.toSignature) := by
+      (falsum : EqualityHornFormula sig) := by
   simp [falsum, IsShared, EqualityHornClause.IsShared]
 
 @[simp]
@@ -153,7 +153,7 @@ theorem isShared_nil (sig : ColoredSignature k)
 @[simp]
 theorem isShared_singleton (sig : ColoredSignature k)
     (boundary : Fin (k - 1))
-    (clause : EqualityHornClause sig.toSignature) :
+    (clause : EqualityHornClause sig) :
     IsShared sig boundary [clause] ↔
       clause.IsShared sig boundary := by
   constructor
@@ -168,7 +168,7 @@ theorem isShared_singleton (sig : ColoredSignature k)
 @[simp]
 theorem isShared_append (sig : ColoredSignature k)
     (boundary : Fin (k - 1))
-    (left right : EqualityHornFormula sig.toSignature) :
+    (left right : EqualityHornFormula sig) :
     IsShared sig boundary (left ++ right) ↔
       IsShared sig boundary left ∧ IsShared sig boundary right := by
   simp only [IsShared, List.mem_append]

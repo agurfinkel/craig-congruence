@@ -17,18 +17,18 @@ be put in its owning part because of `part_color`.
 Keeping the two parts separately is also exactly what is needed to negate the
 clause into the pair of conjunctive inputs used for theory interpolation. -/
 structure ColoredClause (sig : ColoredSignature 2) where
-  part : Fin 2 → Clause sig.toSignature
+  part : Fin 2 → Clause sig
   part_color : ∀ partition, Formula.IsColor sig partition (part partition)
 
 namespace ColoredClause
 
 /-- The underlying disjunctive clause, forgetting ownership. -/
-def literals (clause : ColoredClause sig) : Clause sig.toSignature :=
+def literals (clause : ColoredClause sig) : Clause sig :=
   clause.part 0 ++ clause.part 1
 
 /-- The conjunction which falsifies the literals owned by one color. -/
 def falsifyingPart (clause : ColoredClause sig) (partition : Fin 2) :
-  Formula sig.toSignature :=
+  Formula sig :=
   (clause.part partition).map Literal.negate
 
 theorem falsifyingPart_color (clause : ColoredClause sig) (partition : Fin 2) :
@@ -45,18 +45,18 @@ end ColoredClause
 /-- A two-part clausal EUF input. Every clause in a part contains only local
 symbols of that part and symbols shared across boundary `0`. -/
 structure ColoredCNF (sig : ColoredSignature 2) where
-  part : Fin 2 → CNF sig.toSignature
+  part : Fin 2 → CNF sig
   part_color : ∀ partition clause, clause ∈ part partition →
     Formula.IsColor sig partition clause
 
 namespace ColoredCNF
 
 def Satisfied (inputs : ColoredCNF sig)
-  (interpretation : Interpretation sig.toSignature) : Prop :=
+  (interpretation : Interpretation sig) : Prop :=
   ∀ partition, (inputs.part partition).Satisfied interpretation
 
 def Satisfiable (inputs : ColoredCNF sig) : Prop :=
-  ∃ interpretation : Interpretation sig.toSignature,
+  ∃ interpretation : Interpretation sig,
     inputs.Satisfied interpretation
 
 def Unsatisfiable (inputs : ColoredCNF sig) : Prop :=
