@@ -2,76 +2,18 @@
 
 import Basic.Colored
 import ClausalProofInterpolation.TheoryLemmaInterpolation
+import ClausalProofInterpolation.Specification
 import ClausalProofs.ClausalProof
 import Basic.HornToCNF
 
 /-!
 Local partial-interpolant invariants for colored clausal proofs. This module
-defines annotated theory leaves, occurrence-level clause partitions, and the
-rules that propagate partial interpolants across partitioned resolution steps
-and contradictions.
+defines occurrence-level clause partitions, converts separately supplied
+theory-lemma annotations, and propagates partial interpolants across
+partitioned resolution steps and contradictions.
 -/
 
 namespace EUF
-
-/-- A theory lemma together with one chosen color orientation and its shared
-partial interpolant. The same semantic definition covers the conventional
-A- and B-oriented annotations. -/
-structure TheoryLemmaAnnotation (sig : ColoredSignature 2) where
-  lemma : TheoryLemma sig
-  side : Fin 2
-  interpolant : EqualityHornFormula sig
-  correct : lemma.IsInterpolantAt side interpolant
-
-/-- Leaves admitted by a colored clausal proof. Input clauses retain their
-partition index. A theory leaf retains its color-indexed EUF summary rather
-than merely a proof of semantic validity. -/
-inductive ColoredProofLeaf (inputs : ColoredCNF sig) :
-    Clause sig → Type where
-  | input (side : Fin 2) (member : clause ∈ inputs.part side) :
-      ColoredProofLeaf inputs clause
-  | theory (annotation : TheoryLemmaAnnotation sig) :
-      ColoredProofLeaf inputs annotation.lemma
-
-namespace ColoredProofLeaf
-
-/-- Leaf clauses are satisfied by an interpretation that satisfies all input clauses.
-
-    Follows from: theory lemmas are valid
--/
-theorem sound {sig : ColoredSignature 2}
-    {inputs : ColoredCNF sig}
-    {clause : Clause sig}
-    (leaf : ColoredProofLeaf inputs clause)
-    (interpretation : Interpretation sig)
-    (satisfiesInputs : inputs.Satisfied interpretation) :
-    clause.Satisfied interpretation := by
-  cases leaf with
-  | input side member => exact satisfiesInputs side _ member
-  | theory annotation => exact annotation.lemma.valid interpretation
-
-end ColoredProofLeaf
-
-/-- An LRAT-like refutation whose leaves preserve all information needed for
-interpolation. -/
-abbrev ColoredClauseRefutation (inputs : ColoredCNF sig) :=
-  ClauseRefutation (ColoredProofLeaf inputs)
-
-namespace ColoredClauseRefutation
-
-/-- existence of colored refutation implies that inputs are unsat -/
-theorem inputs_unsatisfiable
-    {sig : ColoredSignature 2} {inputs : ColoredCNF sig}
-    (refutation : ColoredClauseRefutation inputs) :
-    inputs.Unsatisfiable := by
-  rintro ⟨interpretation, satisfiesInputs⟩
-  have satisfiesTrace := refutation.trace.sound interpretation (by
-    intro clause leaf
-    exact leaf.sound interpretation satisfiesInputs)
-  exact Clause.not_satisfied_nil interpretation
-    (satisfiesTrace [] refutation.contradiction)
-
-end ColoredClauseRefutation
 
 /-- An occurrence-level partition of a derived clause. `reconstructs` permits
 the two colored parts to reorder the original literal occurrences. -/
@@ -212,23 +154,6 @@ structure IsPartialInterpolantAt (inputs : ColoredCNF sig)
       (inputs.part side.rev).Satisfied interpretation ∧
       Satisfies interpretation
         (partition.toColoredClause.falsifyingPart side.rev)
-
-/-- The final semantic specification for interpolation between two colored
-clausal EUF inputs, indexed by the side whose contribution is summarized. -/
-structure IsClausalInterpolantAt (inputs : ColoredCNF sig)
-    (side : Fin 2)
-    (interpolant : CNF sig) : Prop where
-  inputs_unsatisfiable : inputs.Unsatisfiable
-  interpolant_shared :
-    CNF.IsShared sig 0 interpolant
-  side_entails :
-    ∀ interpretation : Interpretation sig,
-      (inputs.part side).Satisfied interpretation →
-      interpolant.Satisfied interpretation
-  interpolant_other_unsatisfiable :
-    ¬∃ interpretation : Interpretation sig,
-      interpolant.Satisfied interpretation ∧
-      (inputs.part side.rev).Satisfied interpretation
 
 namespace TheoryLemmaAnnotation
 

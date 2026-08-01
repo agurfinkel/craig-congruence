@@ -1,6 +1,6 @@
 -- SPDX-License-Identifier: MIT
 
-import Basic.Colored
+import ClausalProofs.ColoredProof
 import EUFInterpolation.Interpolation
 
 /-!
@@ -11,18 +11,6 @@ at a clausal proof leaf.
 -/
 
 namespace EUF
-
-/-- A theory lemma is a colorable clause which is valid in EUF. Mixed theory
-lemmas are allowed, but no literal occurrence itself is mixed. -/
-structure TheoryLemma (sig : ColoredSignature 2)
-    extends ColoredClause sig where
-  valid : (part 0 ++ part 1).Valid
-
-instance : Coe (TheoryLemma sig) (ColoredClause sig) :=
-  ⟨TheoryLemma.toColoredClause⟩
-
-instance : Coe (TheoryLemma sig) (Clause sig) :=
-  ⟨fun lemma => (lemma : ColoredClause sig).toClause⟩
 
 namespace TheoryLemma
 
@@ -122,5 +110,14 @@ abbrev IsBInterpolant (lemma : TheoryLemma sig)
   IsInterpolantAt lemma 1 interpolant
 
 end TheoryLemma
+
+/-- A theory lemma together with a shared EUF interpolant for one chosen
+orientation. This evidence is required by local proof interpolation, but not
+by shared-interface extraction. -/
+structure TheoryLemmaAnnotation (sig : ColoredSignature 2) where
+  lemma : TheoryLemma sig
+  side : Fin 2
+  interpolant : EqualityHornFormula sig
+  correct : lemma.IsInterpolantAt side interpolant
 
 end EUF

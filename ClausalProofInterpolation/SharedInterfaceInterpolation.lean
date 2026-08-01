@@ -1,12 +1,13 @@
 -- SPDX-License-Identifier: MIT
 
-import ClausalProofInterpolation.ClausalInterpolationTrace
+import ClausalProofInterpolation.Specification
 
 /-!
 Whole-trace interpolation by shared-interface extraction. The module records
 clause owners and permitted dependencies, constructs semantic entailment
 witnesses, prunes a colorable trace to shared source clauses, and proves that
-the selected interface is a clausal Craig interpolant.
+the selected interface is a clausal Craig interpolant. This alternative avoids
+local theory-lemma interpolation when the proof exposes a suitable shared cut.
 -/
 
 namespace EUF
@@ -155,10 +156,10 @@ theorem parent_of_result_other
   · exact Or.inl equal
   · exact Or.inr ⟨ownerEqual, shared⟩
 
-/-- A coloring witness parallel to an LRAT trace. Theory leaves take the
-orientation of their EUF annotation. Ordinary and learned clauses are
-colorable in their owning partition, and learned-clause dependencies obey the
-shared-interface restriction. -/
+/-- A coloring witness parallel to an LRAT trace. Theory leaves retain their
+explicit proof owner. Ordinary and learned clauses are colorable in their
+owning partition, and learned-clause dependencies obey the shared-interface
+restriction. -/
 inductive ColorableClauseTrace
     {sig : ColoredSignature 2} (inputs : ColoredCNF sig)
     (source : Fin 2) :
@@ -181,10 +182,10 @@ inductive ColorableClauseTrace
       {trace : ClauseTrace (ColoredProofLeaf inputs) available}
       {owners : ClauseOwnerDatabase available}
       (previous : ColorableClauseTrace inputs source trace owners)
-      (annotation : TheoryLemmaAnnotation sig) :
+      (owner : Fin 2) (lemma : TheoryLemma sig) :
       ColorableClauseTrace inputs source
-        (.addLeaf trace (.theory annotation))
-        (owners.snoc annotation.side)
+        (.addLeaf trace (.theory owner lemma))
+        (owners.snoc owner)
   | addDerived
       {available : CNF sig}
       {trace : ClauseTrace (ColoredProofLeaf inputs) available}
@@ -380,11 +381,11 @@ inductive ColorableTraceEntailment
         available owners}
       (previous : ColorableTraceEntailment inputs source interface
         coloring database)
-      (annotation : TheoryLemmaAnnotation sig) :
+      (owner : Fin 2) (lemma : TheoryLemma sig) :
       ColorableTraceEntailment inputs source interface
-        (.addTheory coloring annotation)
+        (.addTheory coloring owner lemma)
         (database.snoc (OwnedClauseEntailment.ofTheory inputs source
-          annotation.side interface annotation.lemma.valid))
+          owner interface lemma.valid))
   | addDerived
       {available : CNF sig}
       {trace : ClauseTrace (ColoredProofLeaf inputs) available}
@@ -496,13 +497,13 @@ noncomputable def buildEntailment
         { database := prior.database.snoc
             (OwnedClauseEntailment.ofInput inputs source owner interface member)
           correct := .addInput prior.correct owner member }
-  | addTheory previous annotation inductionHypothesis =>
+  | addTheory previous owner lemma inductionHypothesis =>
       let prior := inductionHypothesis covered.previous
       exact
         { database := prior.database.snoc
-            (OwnedClauseEntailment.ofTheory inputs source annotation.side
-              interface annotation.lemma.valid)
-          correct := .addTheory prior.correct annotation }
+            (OwnedClauseEntailment.ofTheory inputs source owner
+              interface lemma.valid)
+          correct := .addTheory prior.correct owner lemma }
   | addDerived previous justification owner clauseColor anchorAllowed
       parentsAllowed inductionHypothesis =>
       let prior := inductionHypothesis covered.previous
@@ -760,9 +761,12 @@ source clause consumed by target reasoning. -/
 structure SharedInterfaceCertificate (inputs : ColoredCNF sig)
     (side : Fin 2) where
   interface : CNF sig
+  /-- interface clauses are AB-shared --/
   interface_shared : CNF.IsShared sig 0 interface
+  /-- interface clauses are EUF consequences of A-side of inputs --/
   sourceDerivation : ∀ clause, clause ∈ interface →
     ClauseConsequence (inputs.part side) clause
+  /-- The interface is inconsistent with the opposite-side inputs in EUF. -/
   targetRefutation :
     ClauseRefutation
       (CNF.InputOrTheory (interface ++ inputs.part side.rev))
