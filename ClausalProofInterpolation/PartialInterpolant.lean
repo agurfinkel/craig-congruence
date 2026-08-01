@@ -31,7 +31,7 @@ inductive ColoredProofLeaf (inputs : ColoredCNF sig) :
   | input (side : Fin 2) (member : clause ∈ inputs.part side) :
       ColoredProofLeaf inputs clause
   | theory (annotation : TheoryLemmaAnnotation sig) :
-      ColoredProofLeaf inputs annotation.lemma.toColoredClause.literals
+      ColoredProofLeaf inputs (ColoredClause.literals annotation.lemma)
 
 namespace ColoredProofLeaf
 
@@ -136,8 +136,8 @@ theorem part_eq_nil_of_empty
 /-- The partition already stored by a theory lemma reconstructs its own
 underlying clause. -/
 def ofTheoryLemma (lemma : TheoryLemma sig) :
-    ClausePartition sig lemma.toColoredClause.literals where
-  toColoredClause := lemma.toColoredClause
+    ClausePartition sig (ColoredClause.literals lemma) where
+  toColoredClause := lemma
   reconstructs := List.Perm.refl _
 
 end ClausePartition
@@ -232,8 +232,8 @@ that leaf in any surrounding clausal problem. The surrounding input clauses
 are irrelevant to this local argument. -/
 def toPartialInterpolant (annotation : TheoryLemmaAnnotation sig)
     (inputs : ColoredCNF sig) :
-    IsPartialInterpolantAt inputs
-      annotation.lemma.toColoredClause.literals
+  IsPartialInterpolantAt inputs
+      (ColoredClause.literals annotation.lemma)
       (ClausePartition.ofTheoryLemma annotation.lemma)
       annotation.side annotation.interpolant.toCNF where
   interpolant_shared := EqualityHornFormula.toCNF_isShared

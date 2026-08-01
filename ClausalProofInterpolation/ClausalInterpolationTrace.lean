@@ -119,7 +119,7 @@ def theory
     {side : Fin 2} (annotation : TheoryLemmaAnnotation sig)
     (equal : annotation.side = side) :
     ClauseAnnotation inputs side
-      annotation.lemma.toColoredClause.literals := by
+      (ColoredClause.literals annotation.lemma) := by
   subst side
   exact ClauseAnnotation.mk
     (ClausePartition.ofTheoryLemma annotation.lemma)

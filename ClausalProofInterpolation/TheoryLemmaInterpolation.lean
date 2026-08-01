@@ -16,7 +16,10 @@ namespace EUF
 lemmas are allowed, but no literal occurrence itself is mixed. -/
 structure TheoryLemma (sig : ColoredSignature 2)
     extends ColoredClause sig where
-  valid : toColoredClause.literals.Valid
+  valid : (part 0 ++ part 1).Valid
+
+instance : Coe (TheoryLemma sig) (ColoredClause sig) :=
+  ⟨TheoryLemma.toColoredClause⟩
 
 namespace TheoryLemma
 
@@ -24,8 +27,8 @@ namespace TheoryLemma
 its two colored parts. -/
 theorem falsifyingParts_unsatisfiable (lemma : TheoryLemma sig) :
     Unsatisfiable
-      (lemma.toColoredClause.falsifyingPart 0 ++
-        lemma.toColoredClause.falsifyingPart 1) := by
+      ((lemma : ColoredClause sig).falsifyingPart 0 ++
+        (lemma : ColoredClause sig).falsifyingPart 1) := by
   rintro ⟨interpretation, satisfiesNegation⟩
   have parts := (satisfies_append interpretation _ _).mp satisfiesNegation
   obtain ⟨literal, member, satisfiesLiteral⟩ := lemma.valid interpretation
@@ -51,10 +54,10 @@ structure IsInterpolantAt (lemma : TheoryLemma sig) (side : Fin 2)
     EqualityHornFormula.IsShared sig 0 interpolant
   side_entails :
     EntailsEqualityHornFormula
-      (lemma.toColoredClause.falsifyingPart side) interpolant
+      ((lemma : ColoredClause sig).falsifyingPart side) interpolant
   interpolant_other_unsatisfiable :
     UnsatisfiableWithEqualityHornFormula interpolant
-      (lemma.toColoredClause.falsifyingPart side.rev)
+      ((lemma : ColoredClause sig).falsifyingPart side.rev)
 
 /-- A color-0 theory-lemma annotation is an ordinary interpolant between the
 two parts of the negated clause. -/
@@ -64,11 +67,11 @@ def IsInterpolantAt.toIsInterpolant
     {interpolant : EqualityHornFormula sig}
     (annotation : IsInterpolantAt lemma 0 interpolant) :
     IsInterpolant sig
-      (ColoredClause.falsifyingPart lemma.toColoredClause 0)
-      (ColoredClause.falsifyingPart lemma.toColoredClause 1)
+      ((lemma : ColoredClause sig).falsifyingPart 0)
+      ((lemma : ColoredClause sig).falsifyingPart 1)
       interpolant where
-  phi1_color := ColoredClause.falsifyingPart_color lemma.toColoredClause 0
-  phi2_color := ColoredClause.falsifyingPart_color lemma.toColoredClause 1
+  phi1_color := (lemma : ColoredClause sig).falsifyingPart_color 0
+  phi2_color := (lemma : ColoredClause sig).falsifyingPart_color 1
   inputs_unsatisfiable := falsifyingParts_unsatisfiable lemma
   interpolant_shared := annotation.interpolant_shared
   phi1_entails := annotation.side_entails
@@ -84,8 +87,8 @@ def IsInterpolantAt.ofIsInterpolant
     {interpolant : EqualityHornFormula sig}
     (isInterpolant :
       IsInterpolant sig
-        (ColoredClause.falsifyingPart lemma.toColoredClause 0)
-        (ColoredClause.falsifyingPart lemma.toColoredClause 1)
+        ((lemma : ColoredClause sig).falsifyingPart 0)
+        ((lemma : ColoredClause sig).falsifyingPart 1)
         interpolant) :
     IsInterpolantAt lemma 0 interpolant where
   interpolant_shared := isInterpolant.interpolant_shared
@@ -99,8 +102,8 @@ theorem isInterpolantAt_zero_iff
     {interpolant : EqualityHornFormula sig} :
     IsInterpolantAt lemma 0 interpolant ↔
       IsInterpolant sig
-        (ColoredClause.falsifyingPart lemma.toColoredClause 0)
-        (ColoredClause.falsifyingPart lemma.toColoredClause 1)
+        ((lemma : ColoredClause sig).falsifyingPart 0)
+        ((lemma : ColoredClause sig).falsifyingPart 1)
         interpolant :=
   ⟨IsInterpolantAt.toIsInterpolant, IsInterpolantAt.ofIsInterpolant⟩
 
