@@ -89,7 +89,7 @@ mutual
   /-- A proof-producing communication step. An equality produced by one local
   color is derived from that color's input formula and finitely many shared
   equalities previously produced by the other local color. -/
-  inductive EqualityExchangeProof (sig : ColoredSignature 2)
+  inductive EqualityExchangeProof {sig : ColoredSignature 2}
       (naming : TermNaming sig)
       (formulas : InterpolationColor → Formula sig) :
       InterpolationColor → SharedEqualityEdge naming → Type where
@@ -97,34 +97,38 @@ mutual
         (edge : SharedEqualityEdge naming)
         (premises : Formula sig)
         (dependencies : EqualityExchangeDependencies
-          sig naming formulas producer.other premises)
+          naming formulas producer.other premises)
         (derivation : DerivesEq
           (formulas producer ++ premises)
           edge.equality.left edge.equality.right) :
-        EqualityExchangeProof sig naming formulas producer edge
+        EqualityExchangeProof naming formulas producer edge
 
   /-- A finite list of communicated equality proofs, indexed by the formula of
   equality literals that they supply to the receiving closure. -/
-  inductive EqualityExchangeDependencies (sig : ColoredSignature 2)
+  inductive EqualityExchangeDependencies {sig : ColoredSignature 2}
       (naming : TermNaming sig)
       (formulas : InterpolationColor → Formula sig) :
       InterpolationColor → Formula sig → Type where
     | nil (producer : InterpolationColor) :
-        EqualityExchangeDependencies sig naming formulas producer []
+        EqualityExchangeDependencies naming formulas producer []
     | cons {producer : InterpolationColor}
         {edge : SharedEqualityEdge naming}
         {premises : Formula sig}
-        (head : EqualityExchangeProof sig naming formulas producer edge)
-        (tail : EqualityExchangeDependencies sig naming formulas producer premises) :
-        EqualityExchangeDependencies sig naming formulas producer
+        (head : EqualityExchangeProof naming formulas producer edge)
+        (tail : EqualityExchangeDependencies naming formulas producer premises) :
+        EqualityExchangeDependencies naming formulas producer
           (edge.literal :: premises)
 
 end
 
+variable {sig : ColoredSignature 2}
+  {naming : TermNaming sig}
+  {formulas : InterpolationColor → Formula sig}
+
 namespace EqualityExchangeProof
 
 def producedEquality
-    (_proof : EqualityExchangeProof sig naming formulas producer edge) :
+    (_proof : EqualityExchangeProof naming formulas producer edge) :
     Equality sig :=
   edge.equality
 
@@ -141,13 +145,13 @@ def ofAbstractClosure
     (edge : SharedEqualityEdge naming)
     (premises : Formula sig)
     (dependencies : EqualityExchangeDependencies
-      sig naming formulas producer.other premises)
+      naming formulas producer.other premises)
     (closure : AbstractCongruenceClosure
       (formulas producer ++ premises) system)
     (edgeJoinable : system.Joinable
       (ExtendedSignature.constant edge.left)
       (ExtendedSignature.constant edge.right)) :
-    EqualityExchangeProof sig naming formulas producer edge := by
+    EqualityExchangeProof naming formulas producer edge := by
   have leftEquivalent := realized edge.left
   have rightEquivalent := realized edge.right
   have namesEquivalent :=
@@ -175,14 +179,14 @@ end EqualityExchangeProof
 namespace EqualityExchangeDependencies
 
 def equalities :
-    EqualityExchangeDependencies sig naming formulas producer premises →
+    EqualityExchangeDependencies naming formulas producer premises →
       List (Equality sig)
   | .nil _ => []
   | .cons head tail => head.producedEquality :: equalities tail
 
 theorem literals_equalities
     : (dependencies : EqualityExchangeDependencies
-        sig naming formulas producer premises) →
+        naming formulas producer premises) →
       dependencies.equalities.map Equality.literal = premises
   | .nil _ => rfl
   | @EqualityExchangeDependencies.cons _ _ _ _ edge _ head tail => by
@@ -193,7 +197,7 @@ theorem literals_equalities
 
 theorem satisfies_of_equalities
     (dependencies : EqualityExchangeDependencies
-      sig naming formulas producer premises)
+      naming formulas producer premises)
     (interpretation : Interpretation sig)
     (satisfies : ∀ equality ∈ dependencies.equalities,
       equality.Satisfied interpretation) :
@@ -204,7 +208,7 @@ theorem satisfies_of_equalities
 
 theorem equalities_shared :
     (dependencies : EqualityExchangeDependencies
-      sig naming formulas producer premises) →
+      naming formulas producer premises) →
     ∀ equality ∈ dependencies.equalities,
       equality.IsShared sig 0
   | .nil _, _, member => nomatch member
@@ -223,7 +227,7 @@ mutual
   /-- Recursively collect all color-`0` justifications needed for an exchanged
   equality. Color-`1` nodes contribute no clause of their own. -/
   def EqualityExchangeProof.interpolant :
-      EqualityExchangeProof sig naming formulas producer edge →
+      EqualityExchangeProof naming formulas producer edge →
         EqualityHornFormula sig
     | .derive producer edge _ dependencies _ =>
         dependencies.interpolant ++
@@ -232,7 +236,7 @@ mutual
         else []
 
   def EqualityExchangeDependencies.interpolant :
-      EqualityExchangeDependencies sig naming formulas producer premises →
+      EqualityExchangeDependencies naming formulas producer premises →
         EqualityHornFormula sig
     | .nil _ => []
     | .cons head tail => head.interpolant ++ tail.interpolant
@@ -240,7 +244,7 @@ mutual
 end
 
 theorem EqualityExchangeProof.interpolant_entailed_by_color_zero
-    (proof : EqualityExchangeProof sig naming formulas producer edge) :
+    (proof : EqualityExchangeProof naming formulas producer edge) :
     EntailsEqualityHornFormula (formulas 0) proof.interpolant := by
   refine EqualityExchangeProof.rec
     (motive_2 := fun _ _ dependencies =>
@@ -269,7 +273,7 @@ theorem EqualityExchangeProof.interpolant_entailed_by_color_zero
 
 theorem EqualityExchangeDependencies.interpolant_entailed_by_color_zero
     (dependencies : EqualityExchangeDependencies
-      sig naming formulas producer premises) :
+      naming formulas producer premises) :
     EntailsEqualityHornFormula (formulas 0) dependencies.interpolant := by
   refine EqualityExchangeDependencies.rec
     (motive_1 := fun _ _ proof =>
@@ -297,7 +301,7 @@ theorem EqualityExchangeDependencies.interpolant_entailed_by_color_zero
         tailIH interpretation satisfiesColorZero⟩
 
 theorem EqualityExchangeProof.equality_entailed_by_color_one
-    (proof : EqualityExchangeProof sig naming formulas producer edge)
+    (proof : EqualityExchangeProof naming formulas producer edge)
     (interpretation : Interpretation sig)
     (satisfiesColorOne : Satisfies interpretation (formulas 1))
     (satisfiesInterpolant :
@@ -349,7 +353,7 @@ theorem EqualityExchangeProof.equality_entailed_by_color_one
 
 theorem EqualityExchangeDependencies.equalities_entailed_by_color_one
     (dependencies : EqualityExchangeDependencies
-      sig naming formulas producer premises)
+      naming formulas producer premises)
     (interpretation : Interpretation sig)
     (satisfiesColorOne : Satisfies interpretation (formulas 1))
     (satisfiesInterpolant :
@@ -400,7 +404,7 @@ theorem EqualityExchangeDependencies.equalities_entailed_by_color_one
     · exact tailSatisfied literal member
 
 theorem EqualityExchangeProof.interpolant_shared
-    (proof : EqualityExchangeProof sig naming formulas producer edge) :
+    (proof : EqualityExchangeProof naming formulas producer edge) :
     EqualityHornFormula.IsShared sig 0 proof.interpolant := by
   refine EqualityExchangeProof.rec
     (motive_2 := fun _ _ dependencies =>
@@ -432,7 +436,7 @@ theorem EqualityExchangeProof.interpolant_shared
 
 theorem EqualityExchangeDependencies.interpolant_shared
     (dependencies : EqualityExchangeDependencies
-      sig naming formulas producer premises) :
+      naming formulas producer premises) :
     EqualityHornFormula.IsShared sig 0 dependencies.interpolant := by
   refine EqualityExchangeDependencies.rec
     (motive_1 := fun _ _ proof =>
@@ -472,7 +476,7 @@ inductive EqualityInterpolationConflict (sig : ColoredSignature 2)
       (disequality : Literal.ne left right ∈ formulas 0)
       (premises : Formula sig)
       (dependencies : EqualityExchangeDependencies
-        sig naming formulas 1 premises)
+        naming formulas 1 premises)
       (derivation : DerivesEq
         (formulas 0 ++ premises) left right) :
       EqualityInterpolationConflict sig naming formulas
@@ -480,7 +484,7 @@ inductive EqualityInterpolationConflict (sig : ColoredSignature 2)
       (disequality : Literal.ne left right ∈ formulas 1)
       (premises : Formula sig)
       (dependencies : EqualityExchangeDependencies
-        sig naming formulas 0 premises)
+        naming formulas 0 premises)
       (derivation : DerivesEq
         (formulas 1 ++ premises) left right) :
       EqualityInterpolationConflict sig naming formulas
