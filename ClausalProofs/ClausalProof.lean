@@ -31,26 +31,6 @@ instance : Clausal.Negation (Literal signature) where
   negate := Literal.negate
   negate_negate := Literal.negate_negate
 
-namespace Clause
-
-/-- `stronger` subsumes `weaker`: every literal of the stronger clause also
-occurs in the weaker one. This permits an explicit resolution chain to finish
-with a subclause of the learned clause, as in LRAT/RUP witnesses. -/
-def Subsumes (stronger weaker : Clausal.Clause literal) : Prop :=
-  ∀ literal ∈ stronger, literal ∈ weaker
-
-theorem satisfied_of_subsumes
-    {signature : Signature} {stronger weaker : Clause signature}
-    {interpretation : Interpretation signature}
-    (subsumes : Subsumes (literal := Literal signature) stronger weaker)
-    (satisfies : Clause.Satisfied (signature := signature)
-      interpretation stronger) :
-    Clause.Satisfied (signature := signature) interpretation weaker := by
-  obtain ⟨literal, member, satisfiesLiteral⟩ := satisfies
-  exact ⟨literal, subsumes literal member, satisfiesLiteral⟩
-
-end Clause
-
 /-- A normalized binary resolution step. The pivot occurs in the left parent
 and its complement occurs in the right parent. The resolvent contains exactly
 the non-pivot literals of both parents, without duplicates. The membership
@@ -59,7 +39,7 @@ structure ResolutionStep [Clausal.Negation literal]
     (left right resolvent : Clausal.Clause literal) where
   pivot : literal
   pivot_mem_left : pivot ∈ left
-  negate_pivot_mem_right : Clausal.Negation.negate pivot ∈ right
+  not_pivot_mem_right : Clausal.Negation.negate pivot ∈ right
   mem_resolvent_iff : ∀ candidate,
     candidate ∈ resolvent ↔
       (candidate ≠ pivot ∧ candidate ∈ left) ∨
@@ -67,6 +47,13 @@ structure ResolutionStep [Clausal.Negation literal]
   resolvent_nodup : resolvent.Nodup
 
 namespace ResolutionStep
+
+/-- The complement of the resolution pivot. -/
+def not_pivot
+    {literal : Type} [Clausal.Negation literal]
+    {left right resolvent : Clausal.Clause literal}
+    (step : ResolutionStep left right resolvent) : literal :=
+  Clausal.Negation.negate step.pivot
 
 /-- Binary resolution preserves clause satisfaction. -/
 theorem sound {signature : Signature}
@@ -78,7 +65,7 @@ theorem sound {signature : Signature}
     resolvent.Satisfied interpretation := by
   by_cases satisfiesPivot : SatisfiesLiteral interpretation step.pivot
   · obtain ⟨literal, member, satisfiesLiteral⟩ := satisfiesRight
-    have notComplement : literal ≠ step.pivot.negate := by
+    have notComplement : literal ≠ step.not_pivot := by
       intro equal
       subst literal
       exact (Literal.satisfies_negate_iff_not interpretation step.pivot).mp
@@ -180,9 +167,7 @@ structure ChainJustification [Clausal.Negation literal]
     (available : Clausal.CNF literal)
     (derived : Clausal.Clause literal) where
   anchor : Fin available.length
-  resolvent : Clausal.Clause literal
-  chain : ResolutionChain available (available.get anchor) resolvent
-  subsumes : Clause.Subsumes resolvent derived
+  chain : ResolutionChain available (available.get anchor) derived
 
 namespace ChainJustification
 
@@ -191,9 +176,8 @@ theorem sound {signature : Signature}
     (justification : ChainJustification available derived)
     (interpretation : Interpretation signature)
     (satisfiesAvailable : available.Satisfied interpretation) :
-    derived.Satisfied interpretation := by
-  apply Clause.satisfied_of_subsumes justification.subsumes
-  exact justification.chain.sound interpretation satisfiesAvailable
+    derived.Satisfied interpretation :=
+  justification.chain.sound interpretation satisfiesAvailable
     (satisfiesAvailable _ (List.get_mem available justification.anchor))
 
 end ChainJustification
@@ -273,14 +257,6 @@ end CNF
 end EUF
 
 namespace Clausal
-
-namespace Clause
-
-/-- Generic clause subsumption. -/
-abbrev Subsumes (stronger weaker : Clause literal) :=
-  EUF.Clause.Subsumes stronger weaker
-
-end Clause
 
 /-- A generic normalized resolution step. The existing `EUF`-namespaced API
 is retained for compatibility with the interpolation development. -/

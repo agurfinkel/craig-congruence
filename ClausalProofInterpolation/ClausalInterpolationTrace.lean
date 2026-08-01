@@ -170,53 +170,6 @@ def resolve
 
 end ClauseAnnotation
 
-/-- A subsumption witness that also preserves the occurrence partition. The
-ordinary clause relation says that `stronger` implies `weaker`; this field
-transports the two falsifying projections used by interpolation. -/
-structure PartitionedSubsumption
-    {sig : ColoredSignature 2}
-    {stronger weaker : Clause sig}
-    (subsumes : Clause.Subsumes stronger weaker)
-    (strongerPartition : ClausePartition sig stronger)
-    (weakerPartition : ClausePartition sig weaker) where
-  falsifyingPart :
-    ∀ side (interpretation : Interpretation sig),
-      Satisfies interpretation
-        (weakerPartition.toColoredClause.falsifyingPart side) →
-      Satisfies interpretation
-        (strongerPartition.toColoredClause.falsifyingPart side)
-
-namespace ClauseAnnotation
-
-/-- Transport a partial interpolant from a subsuming chain result to the
-possibly weaker learned clause. -/
-def ofSubsumption
-    {sig : ColoredSignature 2} {inputs : ColoredCNF sig}
-    {side : Fin 2} {stronger weaker : Clause sig}
-    (strongerAnnotation : ClauseAnnotation inputs side stronger)
-    (weakerPartition : ClausePartition sig weaker)
-    {subsumes : Clause.Subsumes stronger weaker}
-    (partitioned : PartitionedSubsumption subsumes
-      strongerAnnotation.partition weakerPartition) :
-    ClauseAnnotation inputs side weaker where
-  partition := weakerPartition
-  interpolant := strongerAnnotation.interpolant
-  correct := {
-    interpolant_shared := strongerAnnotation.correct.interpolant_shared
-    side_entails := by
-      intro interpretation satisfiesInputs satisfiesWeaker
-      apply strongerAnnotation.correct.side_entails interpretation
-        satisfiesInputs
-      exact partitioned.falsifyingPart side interpretation satisfiesWeaker
-    interpolant_other_unsatisfiable := by
-      rintro ⟨interpretation, satisfiesInterpolant, satisfiesInputs,
-        satisfiesWeaker⟩
-      exact strongerAnnotation.correct.interpolant_other_unsatisfiable
-        ⟨interpretation, satisfiesInterpolant, satisfiesInputs,
-          partitioned.falsifyingPart side.rev interpretation satisfiesWeaker⟩ }
-
-end ClauseAnnotation
-
 /-- A coloring witness parallel to an explicit resolution chain. It supplies
 the occurrence partition of every intermediate resolvent and the ownership
 choice for every pivot. Parent partitions come from the earlier-clause
@@ -287,33 +240,14 @@ structure InterpolatedChainJustification
     (database : ClauseAnnotationDatabase inputs side available)
     {derived : Clause sig}
     (justification : ChainJustification available derived) where
-  resolventPartition : ClausePartition sig justification.resolvent
-  partitioning : ResolutionChainPartitioning database justification.chain
-    (database justification.anchor).partition resolventPartition
   derivedPartition : ClausePartition sig derived
-  partitionedSubsumption : PartitionedSubsumption justification.subsumes
-    resolventPartition derivedPartition
+  partitioning : ResolutionChainPartitioning database justification.chain
+    (database justification.anchor).partition derivedPartition
 
 namespace InterpolatedChainJustification
 
-/-- Compute the annotation of the chain's exact final resolvent. The learned
-clause's final subsumption step is handled separately. -/
-noncomputable def resolventAnnotation
-    {sig : ColoredSignature 2} {inputs : ColoredCNF sig}
-    {side : Fin 2} {available : CNF sig}
-    {database : ClauseAnnotationDatabase inputs side available}
-    {derived : Clause sig}
-    {justification : ChainJustification available derived}
-    (interpolation : InterpolatedChainJustification database justification) :
-    ClauseAnnotation inputs side justification.resolvent := by
-  let result := interpolation.partitioning.interpolate
-    (database justification.anchor).interpolant
-    (database justification.anchor).correct
-  exact ClauseAnnotation.mk interpolation.resolventPartition
-    result.val result.property
-
-/-- Compute the annotation of the learned clause, including the final
-subsumption step recorded by its LRAT-like justification. -/
+/-- Compute the annotation of the clause derived by the exact resolution
+chain. -/
 noncomputable def derivedAnnotation
     {sig : ColoredSignature 2} {inputs : ColoredCNF sig}
     {side : Fin 2} {available : CNF sig}
@@ -321,9 +255,12 @@ noncomputable def derivedAnnotation
     {derived : Clause sig}
     {justification : ChainJustification available derived}
     (interpolation : InterpolatedChainJustification database justification) :
-    ClauseAnnotation inputs side derived :=
-  interpolation.resolventAnnotation.ofSubsumption
-    interpolation.derivedPartition interpolation.partitionedSubsumption
+    ClauseAnnotation inputs side derived := by
+  let result := interpolation.partitioning.interpolate
+    (database justification.anchor).interpolant
+    (database justification.anchor).correct
+  exact ClauseAnnotation.mk interpolation.derivedPartition
+    result.val result.property
 
 end InterpolatedChainJustification
 

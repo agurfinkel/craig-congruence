@@ -319,10 +319,8 @@ def ofDerived
             simpa [ownerEqual] using allowed))
       exact satisfiesSource
     have satisfiesAnchor := satisfiesParent justification.anchor anchorAllowed
-    have satisfiesResolvent := ResolutionChain.sound_of_parents parentsAllowed
-      interpretation satisfiesAnchor satisfiesParent
-    exact Clause.satisfied_of_subsumes justification.subsumes
-      satisfiesResolvent
+    exact ResolutionChain.sound_of_parents parentsAllowed interpretation
+      satisfiesAnchor satisfiesParent
   fromTarget := by
     intro ownerEqual interpretation satisfiesTarget
     have targetParts :=
@@ -340,10 +338,8 @@ def ofDerived
       · exact targetParts.1 _
           (containsSharedSource index sourceOwned shared)
     have satisfiesAnchor := satisfiesParent justification.anchor anchorAllowed
-    have satisfiesResolvent := ResolutionChain.sound_of_parents parentsAllowed
-      interpretation satisfiesAnchor satisfiesParent
-    exact Clause.satisfied_of_subsumes justification.subsumes
-      satisfiesResolvent
+    exact ResolutionChain.sound_of_parents parentsAllowed interpretation
+      satisfiesAnchor satisfiesParent
 
 end OwnedClauseEntailment
 
