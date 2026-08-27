@@ -128,7 +128,7 @@ def theory
 
 /-- The resolution combination with its result partition fixed in the return
 type. This dependent form is convenient when folding a chain. -/
-def resolveAt
+noncomputable def resolveAt
     {sig : ColoredSignature 2} {inputs : ColoredCNF sig}
     {side : Fin 2} {left right resolvent : Clause sig}
     (leftAnnotation : ClauseAnnotation inputs side left)
@@ -153,7 +153,7 @@ def resolveAt
 
 /-- Combine the annotations of a single explicitly partitioned resolution
 step. -/
-def resolve
+noncomputable def resolve
     {sig : ColoredSignature 2} {inputs : ColoredCNF sig}
     {side : Fin 2} {left right resolvent : Clause sig}
     (leftAnnotation : ClauseAnnotation inputs side left)

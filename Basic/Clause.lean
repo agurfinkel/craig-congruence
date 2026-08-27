@@ -31,6 +31,69 @@ end Literal
 
 namespace Clause
 
+private def uniqueWith [DecidableEq α] : List α → List α
+  | [] => []
+  | head :: tail =>
+      let rest := uniqueWith tail
+      if head ∈ rest then rest else head :: rest
+
+private theorem mem_uniqueWith [DecidableEq α] (list : List α) :
+    ∀ item : α, item ∈ uniqueWith list ↔ item ∈ list := by
+  induction list with
+  | nil => simp [uniqueWith]
+  | cons head tail ih =>
+      intro item
+      simp only [uniqueWith]
+      split
+      · have headTail : head ∈ tail := (ih head).mp (by assumption)
+        rw [ih item]
+        constructor
+        · exact fun member => by simp [member]
+        · intro member
+          cases member with
+          | head => exact headTail
+          | tail _ member => exact member
+      · rw [List.mem_cons, List.mem_cons, ih item]
+
+private theorem nodup_uniqueWith [DecidableEq α] (list : List α) :
+    (uniqueWith list).Nodup := by
+  induction list with
+  | nil => simp [uniqueWith]
+  | cons head tail ih =>
+      simp only [uniqueWith]
+      split <;> simp_all
+
+/-- Remove repeated literals from a clause. EUF signatures do not require
+decidable equality, so this normalization uses a classical equality decision
+internally. -/
+noncomputable def unique (clause : Clause signature) : Clause signature := by
+  letI := Classical.typeDecidableEq (Literal signature)
+  exact uniqueWith clause
+
+@[simp]
+theorem mem_unique (literal : Literal signature) (clause : Clause signature) :
+    literal ∈ clause.unique ↔ literal ∈ clause := by
+  classical
+  exact mem_uniqueWith clause literal
+
+theorem unique_nodup (clause : Clause signature) : clause.unique.Nodup := by
+  classical
+  exact nodup_uniqueWith clause
+
+@[simp] theorem unique_nil : unique ([] : Clause signature) = [] := by
+  classical
+  simp [unique, uniqueWith]
+
+@[simp] theorem unique_singleton (literal : Literal signature) :
+    unique [literal] = [literal] := by
+  classical
+  simp [unique, uniqueWith]
+
+@[simp] theorem unique_duplicate_unit (literal : Literal signature) :
+    unique [literal, literal] = [literal] := by
+  classical
+  simp [unique, uniqueWith]
+
 /-- The empty clause. -/
 def empty : Clause signature := []
 
@@ -164,10 +227,19 @@ theorem satisfied_append_iff (interpretation : Interpretation signature)
     · exact satisfiesRight clause member
 
 /-- CNF representation of disjunction, obtained by distributing every clause
-of the left CNF over every clause of the right CNF. -/
-def disjoin (left right : CNF signature) : CNF signature :=
+of the left CNF over every clause of the right CNF. Repeated literals are
+removed from every combined clause. -/
+noncomputable def disjoin (left right : CNF signature) : CNF signature :=
   left.flatMap fun leftClause =>
-    right.map fun rightClause => leftClause ++ rightClause
+    right.map fun rightClause => (leftClause ++ rightClause).unique
+
+theorem disjoin_clauses_nodup
+    (clause : Clause signature) (member : clause ∈ disjoin left right) :
+    clause.Nodup := by
+  classical
+  simp only [disjoin, List.mem_flatMap, List.mem_map] at member
+  obtain ⟨leftClause, _, rightClause, _, rfl⟩ := member
+  exact Clause.unique_nodup (leftClause ++ rightClause)
 
 @[simp]
 theorem satisfied_disjoin_iff (interpretation : Interpretation signature)
@@ -188,23 +260,33 @@ theorem satisfied_disjoin_iff (interpretation : Interpretation signature)
               noCounterexample ⟨clause, member, notSatisfied⟩
       obtain ⟨leftClause, leftMember, leftUnsatisfied⟩ := counterexample
       intro rightClause rightMember
-      have combined := satisfiesDisjunction (leftClause ++ rightClause) (by
+      have combined := satisfiesDisjunction
+          (leftClause ++ rightClause).unique (by
         simp only [disjoin, List.mem_flatMap, List.mem_map]
         exact ⟨leftClause, leftMember,
           ⟨rightClause, rightMember, rfl⟩⟩)
-      rcases (Clause.satisfied_append_iff interpretation _ _).mp combined with
+      have combined' :
+          (leftClause ++ rightClause).Satisfied interpretation := by
+        obtain ⟨literal, member, satisfiesLiteral⟩ := combined
+        exact ⟨literal, (Clause.mem_unique literal _).mp member,
+          satisfiesLiteral⟩
+      rcases (Clause.satisfied_append_iff interpretation _ _).mp combined' with
         satisfiesLeftClause | satisfiesRightClause
       · exact False.elim (leftUnsatisfied satisfiesLeftClause)
       · exact satisfiesRightClause
   · rintro (satisfiesLeft | satisfiesRight) clause member
     · simp only [disjoin, List.mem_flatMap, List.mem_map] at member
       obtain ⟨leftClause, leftMember, rightClause, rightMember, rfl⟩ := member
-      exact (Clause.satisfied_append_iff interpretation _ _).mpr
-        (Or.inl (satisfiesLeft leftClause leftMember))
+      obtain ⟨literal, literalMember, satisfiesLiteral⟩ :=
+        satisfiesLeft leftClause leftMember
+      exact ⟨literal, Clause.mem_unique literal _ |>.mpr
+        (List.mem_append.mpr (Or.inl literalMember)), satisfiesLiteral⟩
     · simp only [disjoin, List.mem_flatMap, List.mem_map] at member
       obtain ⟨leftClause, leftMember, rightClause, rightMember, rfl⟩ := member
-      exact (Clause.satisfied_append_iff interpretation _ _).mpr
-        (Or.inr (satisfiesRight rightClause rightMember))
+      obtain ⟨literal, literalMember, satisfiesLiteral⟩ :=
+        satisfiesRight rightClause rightMember
+      exact ⟨literal, Clause.mem_unique literal _ |>.mpr
+        (List.mem_append.mpr (Or.inr literalMember)), satisfiesLiteral⟩
 
 end CNF
 

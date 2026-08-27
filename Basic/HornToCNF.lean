@@ -162,7 +162,8 @@ theorem isShared_disjoin (sharedLeft : IsShared sig boundary left)
   intro clause clauseMember literal literalMember
   simp only [disjoin, List.mem_flatMap, List.mem_map] at clauseMember
   obtain ⟨leftClause, leftMember, rightClause, rightMember, rfl⟩ := clauseMember
-  rcases List.mem_append.mp literalMember with member | member
+  have combinedMember := (Clause.mem_unique literal _).mp literalMember
+  rcases List.mem_append.mp combinedMember with member | member
   · exact sharedLeft leftClause leftMember literal member
   · exact sharedRight rightClause rightMember literal member
 
