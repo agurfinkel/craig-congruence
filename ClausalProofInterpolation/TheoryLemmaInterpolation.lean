@@ -18,13 +18,14 @@ namespace TheoryLemma
 its two colored parts. -/
 theorem falsifyingParts_unsatisfiable (lemma : TheoryLemma sig) :
     Unsatisfiable
-      ((lemma : ColoredClause sig).falsifyingPart 0 ++
-        (lemma : ColoredClause sig).falsifyingPart 1) := by
+      (Cube.append ((lemma : ColoredClause sig).falsifyingPart 0)
+        ((lemma : ColoredClause sig).falsifyingPart 1)) := by
   rintro ⟨interpretation, satisfiesNegation⟩
   have parts := (satisfies_append interpretation _ _).mp satisfiesNegation
   obtain ⟨literal, member, satisfiesLiteral⟩ := lemma.valid interpretation
-  change literal ∈ lemma.part 0 ++ lemma.part 1 at member
-  rcases List.mem_append.mp member with member | member
+  change literal ∈ Clausal.Clause.append (lemma.part 0) (lemma.part 1) at member
+  rcases Clausal.Clause.mem_append_iff literal (lemma.part 0) (lemma.part 1) |>.mp member with
+    member | member
   · have satisfiesNegated := parts.1 literal.negate (by
       exact List.mem_map.mpr ⟨literal, member, rfl⟩)
     exact (Literal.satisfies_negate_iff_not interpretation literal).mp

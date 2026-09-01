@@ -66,22 +66,22 @@ private theorem coloredAt
 
 def clause : ColoredClause signature where
   part
-    | 0 => [.ne x y]
-    | 1 => [.eq (F x) (F y)]
+    | 0 => Clausal.Clause.ofList [.ne x y]
+    | 1 => Clausal.Clause.ofList [.eq (F x) (F y)]
   part_color := by
     intro partition literal member
     have sides : partition = 0 ∨ partition = 1 := by omega
     rcases sides with rfl | rfl
-    · simp only [List.mem_singleton] at member
+    · simp at member
       subst literal
       apply coloredAt
       exact (Literal.hasColor_negate_iff signature
         (Literal.eq x y) .sharedAB).mpr xy_hasColor
-    · simp only [List.mem_singleton] at member
+    · simp at member
       subst literal
       exact coloredAt Fxy_hasColor
 
-def formulas : InterpolationColor → Formula signature :=
+def formulas : InterpolationColor → Cube signature :=
   fun color => clause.falsifyingPart color
 
 inductive Name
@@ -118,15 +118,17 @@ def dependenciesXY :
 
 /-- Color 1 first admits the communicated shared equality as an assumption. -/
 def certificateFxyAssumption :
-    EqualityCertificate (formulas 1 ++ [xy.literal]) [xy] :=
-  .add .empty (.assumption xy (by simp [xy, Equality.literal]))
+    EqualityCertificate (Cube.append (formulas 1) (Cube.singleton xy.literal)) [xy] :=
+  .add .empty (.assumption xy (by
+    simp [Cube.mem_append_iff, Cube.singleton, xy, Equality.literal]))
 
 /-- Color 1 consumes `x = y` and checks one congruence step. -/
 def certificateFxy :
-    EqualityCertificate (formulas 1 ++ [xy.literal]) [Fxy, xy] :=
+    EqualityCertificate (Cube.append (formulas 1) (Cube.singleton xy.literal)) [Fxy, xy] :=
   .add certificateFxyAssumption
     (EqualityCertificateStep.congr (sig := signature)
-      (formula := formulas 1 ++ [xy.literal]) (previous := [xy]) Function.F
+      (formula := Cube.append (formulas 1) (Cube.singleton xy.literal))
+      (previous := [xy]) Function.F
       (fun _ => (0 : Fin 1)))
 
 def conflict : EqualityInterpolationConflict signature naming formulas :=
@@ -150,7 +152,8 @@ theorem calculated_interpolant :
   rfl
 
 theorem checked_theory_lemma_valid :
-    (certificate.theoryLemma.part 0 ++ certificate.theoryLemma.part 1).Valid :=
+    EUF.Clause.Valid (Clausal.Clause.append
+      (certificate.theoryLemma.part 0) (certificate.theoryLemma.part 1)) :=
   certificate.theoryLemma.valid
 
 def emptyInputs : ColoredCNF signature where

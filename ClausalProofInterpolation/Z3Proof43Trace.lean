@@ -371,7 +371,7 @@ private def resolutionStep
       candidate ∈ resolvent ↔
         (candidate ≠ pivot ∧ candidate ∈ left) ∨
         (candidate ≠ pivot.negate ∧ candidate ∈ right))
-    (nodup : resolvent.Nodup) :
+    (nodup : Clausal.Clause.Nodup resolvent) :
     ResolutionStep left right resolvent where
   pivot := pivot
   pivot_mem_left := pivotMem
@@ -470,8 +470,8 @@ def t3ResolveS : ResolutionStep [s.negate, q.negate] unitS [q.negate] :=
       simp [unitS, s, q, Literal.negate] <;> grind)
     (by simp [q])
 
-def t3ResolveQ : ResolutionStep [q.negate] inputQ [] :=
-  resolutionStep [q.negate] inputQ [] q.negate
+def t3ResolveQ : ResolutionStep [q.negate] inputQ Clausal.Clause.empty :=
+  resolutionStep [q.negate] inputQ Clausal.Clause.empty q.negate
     (by simp)
     (by simp [inputQ])
     (by intro candidate; simp [inputQ])
@@ -569,7 +569,7 @@ def trace10 : ClauseTrace (ColoredProofLeaf Z3Proof43.inputs) clauses10 := by
   simpa [clauses10, clauses8, clauses7, clauses5, trace9, lemma3_clause]
     using trace10
 
-def chainEmpty : ResolutionChain clauses10 theory3 [] :=
+def chainEmpty : ResolutionChain clauses10 theory3 Clausal.Clause.empty :=
   .resolve
     (.resolve
       (.resolve
@@ -587,25 +587,25 @@ def chainEmpty : ResolutionChain clauses10 theory3 [] :=
     ⟨0, by simp [clauses10, clauses8, clauses7, clauses5]⟩
     (by simpa [clauses10, clauses8, clauses7, clauses5] using t3ResolveQ)
 
-def justificationEmpty : ChainJustification clauses10 [] where
+def justificationEmpty : ChainJustification clauses10 Clausal.Clause.empty where
   anchor := ⟨9, by simp [clauses10, clauses8, clauses7, clauses5]⟩
   chain := by
-    change ResolutionChain clauses10 theory3 []
+    change ResolutionChain clauses10 theory3 Clausal.Clause.empty
     exact chainEmpty
 
 def trace : ClauseTrace (ColoredProofLeaf Z3Proof43.inputs)
-    (clauses10 ++ [[]]) :=
+    (clauses10 ++ [Clausal.Clause.empty]) :=
   .addDerived trace10 justificationEmpty
 
 def refutation : ColoredClauseRefutation Z3Proof43.inputs where
-  clauses := clauses10 ++ [[]]
+  clauses := clauses10 ++ [Clausal.Clause.empty]
   trace := trace
   contradiction := by simp
 
 /- The eleven retained clauses, in visitor order. -/
 def clauses : CNF Sig :=
   [inputQ, inputR, inputA, inputNotU, theory1, unitP,
-   theory2, unitNotT, unitS, theory3, []]
+   theory2, unitNotT, unitS, theory3, Clausal.Clause.empty]
 
 theorem refutation_clauses : refutation.clauses = clauses := by
   simp [refutation, clauses, clauses10, clauses8, clauses7, clauses5]
@@ -628,7 +628,8 @@ private theorem p_shared : p.HasColor Sig .sharedAB := by
 def notPHorn : EqualityHornFormula Sig :=
   [{ premises := [pEquality], conclusion := none }]
 
-@[simp] theorem notPHorn_toCNF : notPHorn.toCNF = [[p.negate]] := by
+@[simp] theorem notPHorn_toCNF :
+    notPHorn.toCNF = [Clausal.Clause.ofList [p.negate]] := by
   simp [notPHorn, pEquality, p, EqualityHornFormula.toCNF,
     EqualityHornClause.toClause, Equality.negatedLiteral,
     Literal.negate]
@@ -663,15 +664,21 @@ def annotation1 : TheoryLemmaAnnotation Sig where
       apply (satisfies_notPHorn_iff interpretation).mpr
       intro hp
       have hnotp := satisfiesA p.negate (by
-        simp [lemma1, ColoredClause.falsifyingPart, Clause.negate])
+        change p.negate ∈ Cube.ofList [p.negate]
+        rw [Cube.mem_ofList_iff]
+        simp)
       exact (Literal.satisfies_negate_iff_not interpretation p).mp hnotp hp
     · rintro ⟨interpretation, satisfiesInterpolant, satisfiesB⟩
       have hnotp := (satisfies_notPHorn_iff interpretation).mp
         satisfiesInterpolant
       have hq := satisfiesB q (by
-        simp [lemma1, ColoredClause.falsifyingPart, Clause.negate])
+        change q ∈ Cube.ofList [q, r]
+        rw [Cube.mem_ofList_iff]
+        simp)
       have hr := satisfiesB r (by
-        simp [lemma1, ColoredClause.falsifyingPart, Clause.negate])
+        change r ∈ Cube.ofList [q, r]
+        rw [Cube.mem_ofList_iff]
+        simp)
       exact hnotp ((eval_F_congr interpretation hq).trans hr)
 
 def annotation2 : TheoryLemmaAnnotation Sig where
@@ -684,9 +691,13 @@ def annotation2 : TheoryLemmaAnnotation Sig where
     · intro interpretation satisfiesA
       exfalso
       have hnotu := satisfiesA u.negate (by
-        simp [lemma2, ColoredClause.falsifyingPart, Clause.negate])
+        change u.negate ∈ Cube.ofList [u.negate, t]
+        rw [Cube.mem_ofList_iff]
+        simp)
       have ht := satisfiesA t (by
-        simp [lemma2, ColoredClause.falsifyingPart, Clause.negate])
+        change t ∈ Cube.ofList [u.negate, t]
+        rw [Cube.mem_ofList_iff]
+        simp)
       exact (Literal.satisfies_negate_iff_not interpretation u).mp hnotu
         (eval_F_congr interpretation ht)
     · rintro ⟨interpretation, satisfiesFalse, _⟩
@@ -704,26 +715,34 @@ def annotation3 : TheoryLemmaAnnotation Sig where
       apply (satisfies_notPHorn_iff interpretation).mpr
       intro hp
       have hnotu := satisfiesA u.negate (by
-        simp [lemma3, ColoredClause.falsifyingPart, Clause.negate])
+        change u.negate ∈ Cube.ofList [u.negate, s]
+        rw [Cube.mem_ofList_iff]
+        simp)
       have hs := satisfiesA s (by
-        simp [lemma3, ColoredClause.falsifyingPart, Clause.negate])
+        change s ∈ Cube.ofList [u.negate, s]
+        rw [Cube.mem_ofList_iff]
+        simp)
       apply (Literal.satisfies_negate_iff_not interpretation u).mp hnotu
       exact (eval_F_congr interpretation hs).trans hp
     · rintro ⟨interpretation, satisfiesInterpolant, satisfiesB⟩
       have hnotp := (satisfies_notPHorn_iff interpretation).mp
         satisfiesInterpolant
       have hq := satisfiesB q (by
-        simp [lemma3, ColoredClause.falsifyingPart, Clause.negate])
+        change q ∈ Cube.ofList [q, r]
+        rw [Cube.mem_ofList_iff]
+        simp)
       have hr := satisfiesB r (by
-        simp [lemma3, ColoredClause.falsifyingPart, Clause.negate])
+        change r ∈ Cube.ofList [q, r]
+        rw [Cube.mem_ofList_iff]
+        simp)
       exact hnotp ((eval_F_congr interpretation hq).trans hr)
 
 private def ownedA (clause : Clause Sig)
-    (color : Formula.IsColor Sig 0 clause) : ClausePartition Sig clause :=
+    (color : Clause.IsColor Sig 0 clause) : ClausePartition Sig clause :=
   ClausePartition.owned 0 clause color
 
 private def ownedB (clause : Clause Sig)
-    (color : Formula.IsColor Sig 1 clause) : ClausePartition Sig clause :=
+    (color : Clause.IsColor Sig 1 clause) : ClausePartition Sig clause :=
   ClausePartition.owned 1 clause color
 
 def partitionPR : ClausePartition Sig [p, r.negate] where
@@ -812,7 +831,9 @@ private def projectionT1Q : PartitionedResolutionStep Sig t1ResolveQ
         (by simp [Z3Proof43.inputs, Z3Proof43.inputB, inputQ, q])))
     partitionPR where
   pivotOwner := 1
-  pivot_available := (negateColor q_color).2
+  pivot_available := by
+    change q.negate.AvailableIn Sig 1
+    exact (negateColor q_color).2
   owner_left_of_not_pivot := by
     intro interpretation satisfiesResult notPivot
     change Satisfies interpretation [r] at satisfiesResult
@@ -841,7 +862,7 @@ private def projectionT1Q : PartitionedResolutionStep Sig t1ResolveQ
     exact satisfiesResult p.negate (by simp)
   other_right := by
     intro interpretation _
-    change Satisfies interpretation []
+    change Satisfies interpretation Cube.empty
     intro literal member
     exact nomatch member
 
@@ -879,7 +900,7 @@ private def projectionT1R : PartitionedResolutionStep Sig t1ResolveR
     exact satisfiesResult p.negate (by simp)
   other_right := by
     intro interpretation _
-    change Satisfies interpretation []
+    change Satisfies interpretation Cube.empty
     intro literal member
     exact nomatch member
 
@@ -914,7 +935,7 @@ private def projectionT2R : PartitionedResolutionStep Sig t2ResolveR
     exact satisfiesResult
   other_right := by
     intro interpretation _
-    change Satisfies interpretation []
+    change Satisfies interpretation Cube.empty
     intro literal member
     exact nomatch member
 
@@ -947,12 +968,12 @@ private def projectionT2U : PartitionedResolutionStep Sig t2ResolveU
     exact pivotSatisfied
   other_left := by
     intro interpretation _
-    change Satisfies interpretation []
+    change Satisfies interpretation Cube.empty
     intro literal member
     exact nomatch member
   other_right := by
     intro interpretation _
-    change Satisfies interpretation []
+    change Satisfies interpretation Cube.empty
     intro literal member
     exact nomatch member
 
@@ -986,12 +1007,12 @@ private def projectionInputP : PartitionedResolutionStep Sig inputAResolveP
     exact pivotSatisfied
   other_left := by
     intro interpretation _
-    change Satisfies interpretation []
+    change Satisfies interpretation Cube.empty
     intro literal member
     exact nomatch member
   other_right := by
     intro interpretation _
-    change Satisfies interpretation []
+    change Satisfies interpretation Cube.empty
     intro literal member
     exact nomatch member
 
@@ -1019,12 +1040,12 @@ private def projectionInputT : PartitionedResolutionStep Sig inputAResolveT
     exact pivotSatisfied
   other_left := by
     intro interpretation _
-    change Satisfies interpretation []
+    change Satisfies interpretation Cube.empty
     intro literal member
     exact nomatch member
   other_right := by
     intro interpretation _
-    change Satisfies interpretation []
+    change Satisfies interpretation Cube.empty
     intro literal member
     exact nomatch member
 
@@ -1061,7 +1082,7 @@ private def projectionT3R : PartitionedResolutionStep Sig t3ResolveR
     exact satisfiesResult
   other_right := by
     intro interpretation _
-    change Satisfies interpretation []
+    change Satisfies interpretation Cube.empty
     intro literal member
     exact nomatch member
 
@@ -1098,7 +1119,7 @@ private def projectionT3U : PartitionedResolutionStep Sig t3ResolveU
     exact satisfiesResult
   other_right := by
     intro interpretation _
-    change Satisfies interpretation []
+    change Satisfies interpretation Cube.empty
     intro literal member
     exact nomatch member
 
@@ -1129,7 +1150,7 @@ private def projectionT3S : PartitionedResolutionStep Sig t3ResolveS
     exact satisfiesResult
   other_right := by
     intro interpretation _
-    change Satisfies interpretation []
+    change Satisfies interpretation Cube.empty
     intro literal member
     exact nomatch member
 
@@ -1140,9 +1161,12 @@ private def projectionT3Q : PartitionedResolutionStep Sig t3ResolveQ
         (by simp [Z3Proof43.inputs, Z3Proof43.inputB, inputQ, q])))
     (ClausePartition.empty Sig) where
   pivotOwner := 1
-  pivot_available := (negateColor q_color).2
+  pivot_available := by
+    dsimp [t3ResolveQ, resolutionStep]
+    exact (negateColor q_color).2
   owner_left_of_not_pivot := by
     intro interpretation _ notPivot
+    dsimp [t3ResolveQ, resolutionStep] at notPivot
     change ¬SatisfiesLiteral interpretation q.negate at notPivot
     change Satisfies interpretation [q]
     intro literal member
@@ -1152,6 +1176,7 @@ private def projectionT3Q : PartitionedResolutionStep Sig t3ResolveQ
       ((Literal.satisfies_negate_iff_not interpretation q).mpr notQ)
   owner_right_of_pivot := by
     intro interpretation _ pivotSatisfied
+    dsimp [t3ResolveQ, resolutionStep] at pivotSatisfied
     change SatisfiesLiteral interpretation q.negate at pivotSatisfied
     change Satisfies interpretation [q.negate]
     intro literal member
@@ -1160,12 +1185,12 @@ private def projectionT3Q : PartitionedResolutionStep Sig t3ResolveQ
     exact pivotSatisfied
   other_left := by
     intro interpretation _
-    change Satisfies interpretation []
+    change Satisfies interpretation Cube.empty
     intro literal member
     exact nomatch member
   other_right := by
     intro interpretation _
-    change Satisfies interpretation []
+    change Satisfies interpretation Cube.empty
     intro literal member
     exact nomatch member
 
@@ -1289,13 +1314,13 @@ private def annotationT3 : ClauseAnnotation Z3Proof43.inputs 0 theory3 := by
     annotationNotU.interpolant = CNF.falsum := by rfl
 
 @[simp] private theorem annotationT1_interpolant :
-    annotationT1.interpolant = [[p.negate]] := by rfl
+    annotationT1.interpolant = [Clausal.Clause.ofList [p.negate]] := by rfl
 
 @[simp] private theorem annotationT2_interpolant :
     annotationT2.interpolant = CNF.falsum := by rfl
 
 @[simp] private theorem annotationT3_interpolant :
-    annotationT3.interpolant = [[p.negate]] := by rfl
+    annotationT3.interpolant = [Clausal.Clause.ofList [p.negate]] := by rfl
 
 noncomputable def annotationUSQ :
     ClauseAnnotation Z3Proof43.inputs 0 [u, s.negate, q.negate] := by
@@ -1337,7 +1362,7 @@ noncomputable def annotationNotQ :
       rfl))
 
 noncomputable def annotationEmpty :
-    ClauseAnnotation Z3Proof43.inputs 0 [] := by
+    ClauseAnnotation Z3Proof43.inputs 0 Clausal.Clause.empty := by
   let projection : PartitionedResolutionStep Sig t3ResolveQ
       annotationNotQ.partition annotationQ.partition (ClausePartition.empty Sig) := by
     change PartitionedResolutionStep Sig t3ResolveQ partitionNotQ
@@ -1356,12 +1381,12 @@ theorem trace_interpolant_sound :
     refutation.inputs_unsatisfiable
 
 theorem calculated_interpolant :
-    annotationEmpty.interpolant = [[p.negate]] := by
+    annotationEmpty.interpolant = [Clausal.Clause.ofList [p.negate]] := by
   classical
   simp [annotationEmpty, annotationNotQ, annotationSQ, annotationUSQ,
     annotationS, annotationST, annotationNotT, annotationUT, annotationP,
     annotationPR, ClauseAnnotation.resolve, ClauseAnnotation.resolveAt,
-    CNF.disjoin, CNF.falsum]
+    CNF.disjoin, CNF.falsum, Clausal.Clause.append, Clausal.Clause.empty]
 
 theorem calculated_interpolant_matches_z3
     (interpretation : Interpretation Sig) :

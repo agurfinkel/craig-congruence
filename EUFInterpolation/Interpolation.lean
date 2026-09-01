@@ -12,19 +12,19 @@ entailment from the first side, and inconsistency with the second side.
 namespace EUF
 
 /-- `interpolant` is an interpolant between two colored conjunctive EUF
-formulas when it satisfies the standard two-formula interpolation conditions.
+cubes when it satisfies the standard two-cube interpolation conditions.
 
-The signature has exactly two formula positions: position `0` is A, position
+The signature has exactly two cube positions: position `0` is A, position
 `1` is B, and boundary `0` is their shared color. -/
 structure IsInterpolant (sig : ColoredSignature 2)
-    (phi1 phi2 : Formula sig)
+    (phi1 phi2 : Cube sig)
     (interpolant : EqualityHornFormula sig) : Prop where
   /-- The first input contains only A-local and shared literals. -/
-  phi1_color : Formula.IsColor sig 0 phi1
+  phi1_color : Cube.IsColor sig 0 phi1
   /-- The second input contains only B-local and shared literals. -/
-  phi2_color : Formula.IsColor sig 1 phi2
+  phi2_color : Cube.IsColor sig 1 phi2
   /-- The conjunction of the two inputs is inconsistent. -/
-  inputs_unsatisfiable : Unsatisfiable (phi1 ++ phi2)
+  inputs_unsatisfiable : Unsatisfiable (Cube.append phi1 phi2)
   /-- Every equality atom in the interpolant uses only shared symbols. -/
   interpolant_shared : EqualityHornFormula.IsShared sig 0 interpolant
   /-- The first input semantically entails the interpolant. -/
@@ -41,7 +41,7 @@ inconsistency with the second input. It remains an explicit field of
 conditions. -/
 theorem inputs_unsatisfiable_from_interpolant
     (isInterpolant : IsInterpolant sig phi1 phi2 interpolant) :
-    Unsatisfiable (phi1 ++ phi2) := by
+    Unsatisfiable (Cube.append phi1 phi2) := by
   rintro ⟨interpretation, satisfiesInputs⟩
   have satisfiesPair :=
     (satisfies_append interpretation phi1 phi2).mp satisfiesInputs

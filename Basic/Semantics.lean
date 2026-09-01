@@ -46,21 +46,21 @@ def SatisfiesLiteral (interpretation : Interpretation σ) : Literal σ → Prop
   | .eq left right => interpretation.eval left = interpretation.eval right
   | .ne left right => interpretation.eval left ≠ interpretation.eval right
 
-def Satisfies (interpretation : Interpretation σ) (formula : Formula σ) : Prop :=
-  ∀ literal ∈ formula, SatisfiesLiteral interpretation literal
+def Satisfies (interpretation : Interpretation σ) (cube : Cube σ) : Prop :=
+  ∀ literal ∈ cube, SatisfiesLiteral interpretation literal
 
-/-- Semantic entailment between conjunctive EUF formulas. -/
-def Entails (antecedent consequent : Formula σ) : Prop :=
+/-- Semantic entailment between conjunctive EUF cubes. -/
+def Entails (antecedent consequent : Cube σ) : Prop :=
   ∀ interpretation : Interpretation σ,
     Satisfies interpretation antecedent →
       Satisfies interpretation consequent
 
 @[simp]
 theorem satisfies_append (interpretation : Interpretation σ)
-    (left right : Formula σ) :
-    Satisfies interpretation (left ++ right) ↔
+    (left right : Cube σ) :
+    Satisfies interpretation (Cube.append left right) ↔
       Satisfies interpretation left ∧ Satisfies interpretation right := by
-  simp only [Satisfies, List.mem_append]
+  simp only [Satisfies, Cube.mem_append_iff]
   constructor
   · intro satisfies
     constructor
@@ -72,19 +72,19 @@ theorem satisfies_append (interpretation : Interpretation σ)
     · exact satisfiesLeft literal member
     · exact satisfiesRight literal member
 
-def Satisfiable (formula : Formula σ) : Prop :=
-  ∃ interpretation : Interpretation σ, Satisfies interpretation formula
+def Satisfiable (cube : Cube σ) : Prop :=
+  ∃ interpretation : Interpretation σ, Satisfies interpretation cube
 
-def Unsatisfiable (formula : Formula σ) : Prop :=
-  ¬Satisfiable formula
+def Unsatisfiable (cube : Cube σ) : Prop :=
+  ¬Satisfiable cube
 
 /-- Entailment of an unsatisfiable continuation makes the original
 conjunction unsatisfiable. This is the semantic core of the redundancy of the
 usual interpolation consistency condition. -/
 theorem unsatisfiable_append_of_entails_of_unsatisfiable
     (entails : Entails left middle)
-    (unsatisfiable : Unsatisfiable (middle ++ right)) :
-    Unsatisfiable (left ++ right) := by
+    (unsatisfiable : Unsatisfiable (Cube.append middle right)) :
+    Unsatisfiable (Cube.append left right) := by
   rintro ⟨interpretation, satisfies⟩
   have satisfiesLeft : Satisfies interpretation left :=
     (satisfies_append interpretation left right).mp satisfies |>.1

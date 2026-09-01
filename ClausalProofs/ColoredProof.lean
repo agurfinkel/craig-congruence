@@ -15,7 +15,7 @@ namespace EUF
 lemmas are allowed, but no literal occurrence itself is mixed. -/
 structure TheoryLemma (sig : ColoredSignature 2)
     extends ColoredClause sig where
-  valid : (part 0 ++ part 1).Valid
+  valid : EUF.Clause.Valid (Clausal.Clause.append (part 0) (part 1))
 
 instance : Coe (TheoryLemma sig) (ColoredClause sig) :=
   ⟨TheoryLemma.toColoredClause⟩
@@ -66,7 +66,7 @@ theorem inputs_unsatisfiable
     intro clause leaf
     exact leaf.sound interpretation satisfiesInputs)
   exact Clause.not_satisfied_nil interpretation
-    (satisfiesTrace [] refutation.contradiction)
+    (satisfiesTrace Clausal.Clause.empty refutation.contradiction)
 
 end ColoredClauseRefutation
 

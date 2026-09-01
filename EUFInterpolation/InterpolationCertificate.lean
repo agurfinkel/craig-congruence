@@ -19,7 +19,7 @@ namespace EqualityExchangeProof
 /-- Produce one shared equality exchange from a finite checked equality DAG. -/
 def ofCertificate
     {sig : ColoredSignature 2} {naming : TermNaming sig}
-    {formulas : InterpolationColor → Formula sig}
+    {formulas : InterpolationColor → Cube sig}
     (producer : InterpolationColor)
     (edge : SharedEqualityEdge naming)
     (premises : List (Equality sig))
@@ -27,7 +27,8 @@ def ofCertificate
       (naming := naming) formulas producer.other premises)
     {earlier : List (Equality sig)}
     (certificate : EqualityCertificate
-      (formulas producer ++ premises.map Equality.literal)
+      (Cube.append (formulas producer)
+        (Cube.ofList (premises.map Equality.literal)))
       (edge.equality :: earlier)) :
     EqualityExchangeProof formulas producer edge :=
   .derive producer edge premises dependencies certificate.conclusion
@@ -39,7 +40,7 @@ namespace EqualityInterpolationConflict
 /-- Close a color-0 disequality conflict using an indexed equality proof. -/
 def atColorZeroOfCertificate
     {sig : ColoredSignature 2} {naming : TermNaming sig}
-    {formulas : InterpolationColor → Formula sig}
+    {formulas : InterpolationColor → Cube sig}
     (left right : Term sig)
     (disequality : Literal.ne left right ∈ formulas 0)
     (premises : List (Equality sig))
@@ -47,7 +48,8 @@ def atColorZeroOfCertificate
       (naming := naming) formulas 1 premises)
     {earlier : List (Equality sig)}
     (certificate : EqualityCertificate
-      (formulas 0 ++ premises.map Equality.literal)
+      (Cube.append (formulas 0)
+        (Cube.ofList (premises.map Equality.literal)))
       (⟨left, right⟩ :: earlier)) :
     EqualityInterpolationConflict sig naming formulas :=
   .atColorZero left right disequality premises dependencies
@@ -56,7 +58,7 @@ def atColorZeroOfCertificate
 /-- Close a color-1 disequality conflict using an indexed equality proof. -/
 def atColorOneOfCertificate
     {sig : ColoredSignature 2} {naming : TermNaming sig}
-    {formulas : InterpolationColor → Formula sig}
+    {formulas : InterpolationColor → Cube sig}
     (left right : Term sig)
     (disequality : Literal.ne left right ∈ formulas 1)
     (premises : List (Equality sig))
@@ -64,7 +66,8 @@ def atColorOneOfCertificate
       (naming := naming) formulas 0 premises)
     {earlier : List (Equality sig)}
     (certificate : EqualityCertificate
-      (formulas 1 ++ premises.map Equality.literal)
+      (Cube.append (formulas 1)
+        (Cube.ofList (premises.map Equality.literal)))
       (⟨left, right⟩ :: earlier)) :
     EqualityInterpolationConflict sig naming formulas :=
   .atColorOne left right disequality premises dependencies

@@ -232,16 +232,16 @@ Vigneron.
 `represents_original` is Definition 2(i), `ground_convergent` is Definition
 2(ii), and `conservative` is Definition 2(iii). The latter states that the
 finite abstract system characterizes the entire, generally infinite,
-equational theory of the input formula. Disequality literals do not generate
+equational theory of the input cube. Disequality literals do not generate
 equations and are therefore ignored by `DerivesEq`. -/
-structure AbstractCongruenceClosure (formula : Formula signature)
+structure AbstractCongruenceClosure (cube : Cube signature)
     (system : AbstractRewriteSystem signature K) : Prop where
   represents_original :
     ∀ name : K, ∃ term : Term signature, system.Represents name term
   ground_convergent : system.GroundConvergent
   conservative :
     ∀ left right : Term signature,
-      DerivesEq formula left right ↔
+      DerivesEq cube left right ↔
         system.Joinable (ExtendedSignature.term left)
           (ExtendedSignature.term right)
 
@@ -253,11 +253,11 @@ theorem entails_equality_of_joinable
     (closure : AbstractCongruenceClosure formula system)
     (joinable : system.Joinable (ExtendedSignature.term left)
       (ExtendedSignature.term right)) :
-    Entails formula [Literal.eq left right] := by
+    Entails formula (Cube.singleton (Literal.eq left right)) := by
   have derivation : DerivesEq formula left right :=
     (closure.conservative left right).mpr joinable
   intro interpretation satisfies literal member
-  simp only [List.mem_singleton] at member
+  simp only [Cube.mem_singleton_iff] at member
   subst literal
   exact derivation.sound satisfies
 

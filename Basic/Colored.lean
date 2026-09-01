@@ -18,25 +18,29 @@ Keeping the two parts separately is also exactly what is needed to negate the
 clause into the pair of conjunctive inputs used for theory interpolation. -/
 structure ColoredClause (sig : ColoredSignature 2) where
   part : Fin 2 → Clause sig
-  part_color : ∀ partition, Formula.IsColor sig partition (part partition)
+  part_color : ∀ partition, Clause.IsColor sig partition (part partition)
 
 namespace ColoredClause
 
 /-- The underlying disjunctive clause, forgetting ownership. -/
 def toClause (clause : ColoredClause sig) : Clause sig :=
-  clause.part 0 ++ clause.part 1
+  Clausal.Clause.append (clause.part 0) (clause.part 1)
 
 /-- The conjunction which falsifies the literals owned by one color. -/
 def falsifyingPart (clause : ColoredClause sig) (partition : Fin 2) :
-  Formula sig :=
-  (clause.part partition).negate
+  Cube sig :=
+  Clause.falsifyingCube (clause.part partition)
 
 theorem falsifyingPart_color (clause : ColoredClause sig) (partition : Fin 2) :
-  Formula.IsColor sig partition (clause.falsifyingPart partition) := by
+  Cube.IsColor sig partition (clause.falsifyingPart partition) := by
   intro literal member
-  simp only [falsifyingPart, Clause.negate, List.mem_map] at member
+  change literal ∈ Cube.mapLiterals
+    (Cube.ofList (Clausal.Clause.literals (clause.part partition)))
+      Literal.negate at member
+  rw [Cube.mem_mapLiterals_iff] at member
   obtain ⟨original, originalMember, rfl⟩ := member
-  have originalColor := clause.part_color partition original originalMember
+  have originalColor := clause.part_color partition original (by
+    simpa using originalMember)
   exact ⟨(Literal.colorable_negate_iff sig original).mpr originalColor.1,
     (Literal.availableIn_negate_iff sig partition original).mpr originalColor.2⟩
 
@@ -47,7 +51,7 @@ symbols of that part and symbols shared across boundary `0`. -/
 structure ColoredCNF (sig : ColoredSignature 2) where
   part : Fin 2 → CNF sig
   part_color : ∀ partition clause, clause ∈ part partition →
-    Formula.IsColor sig partition clause
+    Clause.IsColor sig partition clause
 
 namespace ColoredCNF
 

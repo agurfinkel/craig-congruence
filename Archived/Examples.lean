@@ -19,8 +19,8 @@ def exampleSignature : Signature where
 def x : Term exampleSignature := .constant .x
 def y : Term exampleSignature := .constant .y
 
-def contradictory : Formula exampleSignature :=
-  [.eq x y, .ne x y]
+def contradictory : Cube exampleSignature :=
+  Cube.ofList [Literal.eq x y, Literal.ne x y]
 
 def contradictoryGraph : CongruenceGraph contradictory where
   Edge left right := DerivesEq contradictory left right

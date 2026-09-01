@@ -17,7 +17,8 @@ namespace CNF
 /-- Semantic entailment of one clause by a CNF in EUF. -/
 def EntailsClause (cnf : CNF signature) (clause : Clause signature) : Prop :=
   ∀ interpretation : Interpretation signature,
-    cnf.Satisfied interpretation → clause.Satisfied interpretation
+    CNF.Satisfied interpretation cnf →
+      Clause.Satisfied interpretation clause
 
 end CNF
 
@@ -109,7 +110,7 @@ def ParentAllowed (sig : ColoredSignature 2) (source : Fin 2)
     (parent : Clause sig) : Prop :=
   parentOwner = resultOwner ∨
     (resultOwner = source.rev ∧ parentOwner = source ∧
-      parent.IsShared sig 0)
+      Clause.IsShared sig 0 parent)
 
 private theorem fin_two_eq_zero_or_one (side : Fin 2) :
     side = 0 ∨ side = 1 := by
@@ -151,7 +152,7 @@ theorem parent_eq_source_of_result_source
 theorem parent_of_result_other
     (allowed : ParentAllowed sig source source.rev parentOwner parent) :
     parentOwner = source.rev ∨
-      (parentOwner = source ∧ parent.IsShared sig 0) := by
+      (parentOwner = source ∧ Clause.IsShared sig 0 parent) := by
   rcases allowed with equal | ⟨_, ownerEqual, shared⟩
   · exact Or.inl equal
   · exact Or.inr ⟨ownerEqual, shared⟩
@@ -194,7 +195,7 @@ inductive ColorableClauseTrace
       {clause : Clause sig}
       (justification : ChainJustification available clause)
       (owner : Fin 2)
-      (clauseColor : Formula.IsColor sig owner clause)
+      (clauseColor : Clause.IsColor sig owner clause)
       (anchorAllowed : ParentAllowed sig source owner
         (owners justification.anchor)
         (available.get justification.anchor))
@@ -279,7 +280,7 @@ def ofInput (inputs : ColoredCNF sig) (source owner : Fin 2)
       satisfiesTarget).2 clause member
 
 def ofTheory (inputs : ColoredCNF sig) (source owner : Fin 2)
-    (interface : CNF sig) (valid : clause.Valid) :
+    (interface : CNF sig) (valid : Clause.Valid clause) :
     OwnedClauseEntailment inputs source owner interface clause where
   fromSource := fun _ interpretation _ => valid interpretation
   fromTarget := fun _ interpretation _ => valid interpretation
@@ -304,7 +305,7 @@ def ofDerived
         (available.get parent))
     (containsSharedSource : ∀ index : Fin available.length,
       owners index = source →
-      (available.get index).IsShared sig 0 →
+      Clause.IsShared sig 0 (available.get index) →
       available.get index ∈ interface) :
     OwnedClauseEntailment inputs source owner interface clause where
   fromSource := by
@@ -312,7 +313,7 @@ def ofDerived
     have satisfiesParent : ∀ index,
         ParentAllowed sig source owner (owners index)
           (available.get index) →
-        (available.get index).Satisfied interpretation := by
+        Clause.Satisfied interpretation (available.get index) := by
       intro index allowed
       apply (database index).fromSource
         (by simpa [ownerEqual] using
@@ -329,7 +330,7 @@ def ofDerived
     have satisfiesParent : ∀ index,
         ParentAllowed sig source owner (owners index)
           (available.get index) →
-        (available.get index).Satisfied interpretation := by
+        Clause.Satisfied interpretation (available.get index) := by
       intro index allowed
       have classified := parent_of_result_other (by
         simpa [ownerEqual] using allowed)
@@ -398,7 +399,7 @@ inductive ColorableTraceEntailment
       {clause : Clause sig}
       (justification : ChainJustification available clause)
       (owner : Fin 2)
-      (clauseColor : Formula.IsColor sig owner clause)
+      (clauseColor : Clause.IsColor sig owner clause)
       (anchorAllowed : ParentAllowed sig source owner
         (owners justification.anchor)
         (available.get justification.anchor))
@@ -407,7 +408,7 @@ inductive ColorableTraceEntailment
           (available.get parent))
       (containsSharedSource : ∀ index : Fin available.length,
         owners index = source →
-        (available.get index).IsShared sig 0 →
+        Clause.IsShared sig 0 (available.get index) →
         available.get index ∈ interface) :
       ColorableTraceEntailment inputs source interface
         (.addDerived coloring justification owner clauseColor
@@ -425,7 +426,7 @@ def SharedSourceCovered
     (interface : CNF sig) : Prop :=
   ∀ index : Fin clauses.length,
     owners index = source →
-    (clauses.get index).IsShared sig 0 →
+    Clause.IsShared sig 0 (clauses.get index) →
     clauses.get index ∈ interface
 
 namespace SharedSourceCovered
@@ -524,13 +525,13 @@ structure SharedInterfaceSelection
     (clauses : CNF sig)
     (owners : ClauseOwnerDatabase clauses) where
   interface : CNF sig
-  interface_shared : interface.IsShared sig 0
+  interface_shared : CNF.IsShared sig 0 interface
   selected_from_source : ∀ clause, clause ∈ interface →
     { index : Fin clauses.length //
       clauses.get index = clause ∧ owners index = source }
   contains_shared_source : ∀ index : Fin clauses.length,
     owners index = source →
-    (clauses.get index).IsShared sig 0 →
+    Clause.IsShared sig 0 (clauses.get index) →
     clauses.get index ∈ interface
 
 namespace SharedInterfaceSelection
@@ -546,7 +547,7 @@ noncomputable def allSharedSource
     SharedInterfaceSelection source clauses owners := by
   classical
   let selected := (List.finRange clauses.length).filter fun index =>
-    owners index = source ∧ (clauses.get index).IsShared sig 0
+    owners index = source ∧ Clause.IsShared sig 0 (clauses.get index)
   refine
     { interface := selected.map clauses.get
       interface_shared := ?_
@@ -555,21 +556,21 @@ noncomputable def allSharedSource
   · intro clause member
     obtain ⟨index, indexMember, rfl⟩ := List.mem_map.mp member
     have properties : owners index = source ∧
-        (clauses.get index).IsShared sig 0 := by
+        Clause.IsShared sig 0 (clauses.get index) := by
       simpa [selected] using indexMember
     exact properties.2
   · intro clause member
     let index := Classical.choose (List.mem_map.mp member)
     have indexProperties := Classical.choose_spec (List.mem_map.mp member)
     have selectedProperties : owners index = source ∧
-        (clauses.get index).IsShared sig 0 := by
+        Clause.IsShared sig 0 (clauses.get index) := by
       simpa [selected, index] using indexProperties.1
     exact ⟨index, indexProperties.2, selectedProperties.1⟩
   · intro index owner shared
     apply List.mem_map.mpr
     refine ⟨index, ?_, rfl⟩
     have properties : owners index = source ∧
-        (clauses.get index).IsShared sig 0 := ⟨owner, shared⟩
+        Clause.IsShared sig 0 (clauses.get index) := ⟨owner, shared⟩
     simpa [selected] using properties
 
 end SharedInterfaceSelection
@@ -590,7 +591,7 @@ structure SemanticallyPrunedColorableTrace
     clauses owners
   construction : ColorableTraceEntailment inputs source selection.interface
     coloring database
-  contradiction : ([] : Clause sig) ∈ clauses
+  contradiction : (Clausal.Clause.empty : Clause sig) ∈ clauses
 
 namespace SemanticallyPrunedColorableTrace
 
@@ -603,8 +604,8 @@ variable {sig : ColoredSignature 2} {inputs : ColoredCNF sig}
 theorem side_entails
     (pruned : SemanticallyPrunedColorableTrace inputs source coloring) :
     ∀ interpretation : Interpretation sig,
-      (inputs.part source).Satisfied interpretation →
-      pruned.selection.interface.Satisfied interpretation := by
+      CNF.Satisfied interpretation (inputs.part source) →
+      CNF.Satisfied interpretation pruned.selection.interface := by
   intro interpretation satisfiesSource clause member
   obtain ⟨index, equal, owner⟩ :=
     pruned.selection.selected_from_source clause member
@@ -615,18 +616,18 @@ theorem side_entails
 theorem interface_other_unsatisfiable
     (pruned : SemanticallyPrunedColorableTrace inputs source coloring) :
     ¬∃ interpretation : Interpretation sig,
-      pruned.selection.interface.Satisfied interpretation ∧
-      (inputs.part source.rev).Satisfied interpretation := by
+      CNF.Satisfied interpretation pruned.selection.interface ∧
+      CNF.Satisfied interpretation (inputs.part source.rev) := by
   rintro ⟨interpretation, satisfiesInterface, satisfiesOther⟩
   obtain ⟨index, emptyEqual⟩ := List.get_of_mem pruned.contradiction
   have satisfiesTarget :
-      (pruned.selection.interface ++ inputs.part source.rev).Satisfied
-        interpretation :=
+      CNF.Satisfied interpretation
+        (pruned.selection.interface ++ inputs.part source.rev) :=
     (CNF.satisfied_append_iff interpretation _ _).mpr
       ⟨satisfiesInterface, satisfiesOther⟩
   rcases fin_two_eq_or_eq_rev (owners index) source with
       sourceOwned | targetOwned
-  · have emptyShared : (clauses.get index).IsShared sig 0 := by
+  · have emptyShared : Clause.IsShared sig 0 (clauses.get index) := by
       rw [emptyEqual]
       intro literal member
       exact nomatch member
@@ -673,7 +674,7 @@ noncomputable def prune
     {trace : ClauseTrace (ColoredProofLeaf inputs) clauses}
     {owners : ClauseOwnerDatabase clauses}
     (coloring : ColorableClauseTrace inputs source trace owners)
-    (contradiction : ([] : Clause sig) ∈ clauses) :
+    (contradiction : (Clausal.Clause.empty : Clause sig) ∈ clauses) :
     SemanticallyPrunedColorableTrace inputs source coloring := by
   let selection := SharedInterfaceSelection.allSharedSource source clauses owners
   let construction := coloring.buildEntailment selection.interface
@@ -691,7 +692,7 @@ noncomputable def interpolantOfRefutation
     {trace : ClauseTrace (ColoredProofLeaf inputs) clauses}
     {owners : ClauseOwnerDatabase clauses}
     (coloring : ColorableClauseTrace inputs source trace owners)
-    (contradiction : ([] : Clause sig) ∈ clauses) :
+    (contradiction : (Clausal.Clause.empty : Clause sig) ∈ clauses) :
     IsClausalInterpolantAt inputs source
       (coloring.prune contradiction).selection.interface :=
   (coloring.prune contradiction).interpolant
@@ -795,8 +796,8 @@ theorem side_entails
     {side : Fin 2}
     (certificate : SharedInterfaceCertificate inputs side) :
     ∀ interpretation : Interpretation sig,
-      (inputs.part side).Satisfied interpretation →
-      certificate.interface.Satisfied interpretation := by
+      CNF.Satisfied interpretation (inputs.part side) →
+      CNF.Satisfied interpretation certificate.interface := by
   intro interpretation satisfiesSide clause member
   exact (certificate.sourceDerivation clause member).sound
     interpretation satisfiesSide
@@ -806,11 +807,12 @@ theorem interface_other_unsatisfiable
     {side : Fin 2}
     (certificate : SharedInterfaceCertificate inputs side) :
     ¬∃ interpretation : Interpretation sig,
-      certificate.interface.Satisfied interpretation ∧
-      (inputs.part side.rev).Satisfied interpretation := by
+      CNF.Satisfied interpretation certificate.interface ∧
+      CNF.Satisfied interpretation (inputs.part side.rev) := by
   rintro ⟨interpretation, satisfiesInterface, satisfiesOther⟩
   have targetUnsatisfiable :
-      (certificate.interface ++ inputs.part side.rev).Unsatisfiable :=
+      CNF.Unsatisfiable
+        (certificate.interface ++ inputs.part side.rev) :=
     CNF.unsatisfiable_of_refutation certificate.targetRefutation
   apply targetUnsatisfiable
   exact ⟨interpretation,

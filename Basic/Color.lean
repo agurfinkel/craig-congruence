@@ -111,22 +111,34 @@ theorem colorable_negate_iff (sig : ColoredSignature k)
 
 end Literal
 
-namespace Formula
+namespace LiteralList
 
-/-- A formula is shared across a boundary when all of its literals have that
-shared color. In particular, the empty formula is shared. -/
+/-- A list of literals is shared across a boundary when all of its literals
+have that shared color. In particular, the empty list is shared. -/
 def IsShared (sig : ColoredSignature k) (boundary : Fin (k - 1))
-  (formula : Formula sig) : Prop :=
-  ∀ literal ∈ formula, literal.HasColor sig (.shared boundary)
+  (literals : List (Literal sig)) : Prop :=
+  ∀ literal ∈ literals, literal.HasColor sig (.shared boundary)
 
-/-- A formula has color `i` when every literal is colorable and may occur in
-formula `i`. Its literals may freely mix local-`i` and compatible shared
+/-- A list of literals has color `i` when every literal is colorable and may
+occur in formula `i`. Its literals may freely mix local-`i` and compatible shared
 colors. -/
 def IsColor (sig : ColoredSignature k) (partition : Fin k)
-  (formula : Formula sig) : Prop :=
-  ∀ literal ∈ formula,
+  (literals : List (Literal sig)) : Prop :=
+  ∀ literal ∈ literals,
     literal.Colorable sig ∧ literal.AvailableIn sig partition
 
-end Formula
+end LiteralList
+
+namespace Cube
+
+def IsShared (sig : ColoredSignature k) (boundary : Fin (k - 1))
+  (cube : Cube sig) : Prop :=
+  LiteralList.IsShared sig boundary cube.literals
+
+def IsColor (sig : ColoredSignature k) (partition : Fin k)
+  (cube : Cube sig) : Prop :=
+  LiteralList.IsColor sig partition cube.literals
+
+end Cube
 
 end EUF

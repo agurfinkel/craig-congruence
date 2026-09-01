@@ -75,9 +75,10 @@ def SatisfiesEqualityHornFormula (interpretation : Interpretation signature)
 theorem satisfies_equality_literals
     (interpretation : Interpretation signature)
     (equalities : List (Equality signature)) :
-    Satisfies interpretation (equalities.map Equality.literal) ↔
+    Satisfies interpretation
+      (Cube.ofList (equalities.map Equality.literal)) ↔
       ∀ equality ∈ equalities, equality.Satisfied interpretation := by
-  simp only [Satisfies, List.mem_map]
+  simp only [Satisfies, Cube.mem_ofList_iff, List.mem_map]
   constructor
   · intro satisfies equality member
     exact (equality.satisfied_iff_satisfies_literal interpretation).mpr
@@ -86,17 +87,17 @@ theorem satisfies_equality_literals
     exact (equality.satisfied_iff_satisfies_literal interpretation).mp
       (satisfies equality member)
 
-def EntailsEqualityHornFormula (antecedent : Formula signature)
+def EntailsEqualityHornFormula (antecedent : Cube signature)
     (consequent : EqualityHornFormula signature) : Prop :=
   ∀ interpretation : Interpretation signature,
     Satisfies interpretation antecedent →
       SatisfiesEqualityHornFormula interpretation consequent
 
 def UnsatisfiableWithEqualityHornFormula
-    (horn : EqualityHornFormula signature) (formula : Formula signature) : Prop :=
+    (horn : EqualityHornFormula signature) (cube : Cube signature) : Prop :=
   ¬∃ interpretation : Interpretation signature,
     SatisfiesEqualityHornFormula interpretation horn ∧
-      Satisfies interpretation formula
+      Satisfies interpretation cube
 
 namespace EqualityHornFormula
 

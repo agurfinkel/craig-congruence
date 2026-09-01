@@ -1,5 +1,6 @@
 -- SPDX-License-Identifier: MIT
 
+import ClausalProofs.Syntax
 import Basic.Clause
 
 /-!
@@ -9,13 +10,6 @@ soundness theorems instantiate this generic calculus with EUF literals.
 -/
 
 namespace Clausal
-
-/-- A clause is a list representing a disjunction of literals. Resolution
-steps below enforce that their produced clauses contain no duplicates. -/
-abbrev Clause (Literal : Type) := List Literal
-
-/-- A CNF is a list representing a conjunction of clauses. -/
-abbrev CNF (Literal : Type) := List (Clause Literal)
 
 /-- The syntax required by resolution: every literal has an involutive
 complement. No decidable equality or solver representation is assumed. -/
@@ -44,7 +38,7 @@ structure ResolutionStep [Clausal.Negation literal]
     candidate ∈ resolvent ↔
       (candidate ≠ pivot ∧ candidate ∈ left) ∨
       (candidate ≠ Clausal.Negation.negate pivot ∧ candidate ∈ right)
-  resolvent_nodup : resolvent.Nodup
+  resolvent_nodup : Clausal.Clause.Nodup resolvent
 
 namespace ResolutionStep
 
@@ -60,9 +54,9 @@ theorem sound {signature : Signature}
     {left right resolvent : Clause signature}
     (step : ResolutionStep left right resolvent)
     (interpretation : Interpretation signature)
-    (satisfiesLeft : left.Satisfied interpretation)
-    (satisfiesRight : right.Satisfied interpretation) :
-    resolvent.Satisfied interpretation := by
+    (satisfiesLeft : Clause.Satisfied interpretation left)
+    (satisfiesRight : Clause.Satisfied interpretation right) :
+    Clause.Satisfied interpretation resolvent := by
   by_cases satisfiesPivot : SatisfiesLiteral interpretation step.pivot
   · obtain ⟨literal, member, satisfiesLiteral⟩ := satisfiesRight
     have notComplement : literal ≠ step.not_pivot := by
@@ -125,10 +119,10 @@ theorem sound_of_parents
     {chain : ResolutionChain available anchor result}
     (parents : ParentsSatisfy predicate chain)
     (interpretation : Interpretation signature)
-    (satisfiesAnchor : anchor.Satisfied interpretation)
+    (satisfiesAnchor : Clause.Satisfied interpretation anchor)
     (satisfiesParent : ∀ index, predicate index →
-      (available.get index).Satisfied interpretation) :
-    result.Satisfied interpretation := by
+      Clause.Satisfied interpretation (available.get index)) :
+    Clause.Satisfied interpretation result := by
   induction parents with
   | start => exact satisfiesAnchor
   | resolve previous step parentSatisfies previousSound =>
@@ -153,9 +147,9 @@ theorem sound {signature : Signature}
     {available : CNF signature} {anchor result : Clause signature}
     (chain : ResolutionChain available anchor result)
     (interpretation : Interpretation signature)
-    (satisfiesAvailable : available.Satisfied interpretation)
-    (satisfiesAnchor : anchor.Satisfied interpretation) :
-    result.Satisfied interpretation :=
+    (satisfiesAvailable : CNF.Satisfied interpretation available)
+    (satisfiesAnchor : Clause.Satisfied interpretation anchor) :
+    Clause.Satisfied interpretation result :=
   sound_of_parents chain.parentsSatisfy_true interpretation satisfiesAnchor
     (fun index _ => satisfiesAvailable _ (List.get_mem available index))
 
@@ -175,8 +169,8 @@ theorem sound {signature : Signature}
     {available : CNF signature} {derived : Clause signature}
     (justification : ChainJustification available derived)
     (interpretation : Interpretation signature)
-    (satisfiesAvailable : available.Satisfied interpretation) :
-    derived.Satisfied interpretation :=
+    (satisfiesAvailable : CNF.Satisfied interpretation available) :
+    Clause.Satisfied interpretation derived :=
   justification.chain.sound interpretation satisfiesAvailable
     (satisfiesAvailable _ (List.get_mem available justification.anchor))
 
@@ -207,8 +201,8 @@ theorem sound {signature : Signature}
     (trace : ClauseTrace IsLeaf clauses)
     (interpretation : Interpretation signature)
     (justificationSound : ∀ clause, IsLeaf clause →
-      clause.Satisfied interpretation) :
-    clauses.Satisfied interpretation := by
+      Clause.Satisfied interpretation clause) :
+    CNF.Satisfied interpretation clauses := by
   induction trace with
   | empty => exact CNF.satisfied_nil interpretation
   | addLeaf trace leafJustification traceSound =>
@@ -231,28 +225,29 @@ structure ClauseRefutation [Clausal.Negation literal]
     (IsLeaf : Clausal.Clause literal → Type) where
   clauses : Clausal.CNF literal
   trace : ClauseTrace IsLeaf clauses
-  contradiction : ([] : Clausal.Clause literal) ∈ clauses
+  contradiction : (Clausal.Clause.empty : Clausal.Clause literal) ∈ clauses
 
 namespace CNF
 
 /-- Leaves consisting of input clauses and semantically valid theory lemmas. -/
 inductive InputOrTheory (cnf : CNF signature) : Clause signature → Type where
   | input (member : clause ∈ cnf) : InputOrTheory cnf clause
-  | theory (valid : clause.Valid) : InputOrTheory cnf clause
+  | theory (valid : Clause.Valid clause) : InputOrTheory cnf clause
 
 /-- A resolution refutation from input clauses and valid theory lemmas proves
 the input CNF unsatisfiable. -/
 theorem unsatisfiable_of_refutation
     {signature : Signature} {cnf : CNF signature}
     (refutation : ClauseRefutation (InputOrTheory cnf)) :
-    cnf.Unsatisfiable := by
+    CNF.Unsatisfiable cnf := by
   rintro ⟨interpretation, satisfiesCnf⟩
   have satisfiesTrace := refutation.trace.sound interpretation (by
     intro clause justification
     cases justification with
     | input member => exact satisfiesCnf clause member
     | theory valid => exact valid interpretation)
-  have satisfiesEmpty := satisfiesTrace [] refutation.contradiction
+  have satisfiesEmpty := satisfiesTrace Clausal.Clause.empty
+    refutation.contradiction
   exact Clause.not_satisfied_nil interpretation satisfiesEmpty
 
 end CNF

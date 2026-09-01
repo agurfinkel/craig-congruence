@@ -304,7 +304,7 @@ structure InterpolatedClauseRefutation
     (side : Fin 2) (refutation : ColoredClauseRefutation inputs) where
   database : ClauseAnnotationDatabase inputs side refutation.clauses
   contradictionIndex : Fin refutation.clauses.length
-  contradiction_eq : refutation.clauses.get contradictionIndex = []
+  contradiction_eq : refutation.clauses.get contradictionIndex = Clausal.Clause.empty
 
 namespace InterpolatedClauseRefutation
 
@@ -317,7 +317,7 @@ def ofTrace
     (_construction : ClauseTraceInterpolation inputs side
       refutation.trace database)
     (contradictionIndex : Fin refutation.clauses.length)
-    (contradiction_eq : refutation.clauses.get contradictionIndex = []) :
+    (contradiction_eq : refutation.clauses.get contradictionIndex = Clausal.Clause.empty) :
     InterpolatedClauseRefutation inputs side refutation where
   database := database
   contradictionIndex := contradictionIndex

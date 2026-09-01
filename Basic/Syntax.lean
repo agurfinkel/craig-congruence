@@ -50,31 +50,130 @@ theorem negate_negate (literal : Literal σ) :
 
 end Literal
 
-/-- An EUF formula is a conjunction of equality and disequality literals. -/
-abbrev Formula (σ : Signature) := List (Literal σ)
+/-- An EUF cube is a conjunction of equality and disequality literals. -/
+structure Cube (σ : Signature) where
+  private raw : List (Literal σ)
 
-namespace Formula
+namespace Cube
 
-/-- Extract the equality literals from a formula, preserving their order. -/
-def equalities (formula : Formula σ) : List (Literal σ) :=
-  formula.filter (· matches .eq _ _)
+/-- Construct a cube from its literal list. -/
+def ofList (literals : List (Literal σ)) : Cube σ := ⟨literals⟩
 
-/-- Extract the disequality literals from a formula, preserving their order. -/
-def disequalities (formula : Formula σ) : List (Literal σ) :=
-  formula.filter (· matches .ne _ _)
+/-- The literals conjoined by a cube, in order. -/
+def literals (cube : Cube σ) : List (Literal σ) := cube.raw
+
+/-- Construct a cube implicitly when a list of literals has an expected cube
+type. There is intentionally no coercion in the other direction. -/
+instance : Coe (List (Literal σ)) (Cube σ) where
+  coe := ofList
+
+instance : Membership (Literal σ) (Cube σ) where
+  mem cube literal := literal ∈ cube.literals
 
 @[simp]
-theorem eq_mem_equalities_iff {formula : Formula σ} :
-    Literal.eq left right ∈ formula.equalities ↔
-      Literal.eq left right ∈ formula := by
+theorem literals_ofList (literals : List (Literal σ)) :
+    (ofList literals).literals = literals := rfl
+
+@[simp]
+theorem ofList_literals (cube : Cube σ) :
+    ofList cube.literals = cube := rfl
+
+@[ext]
+theorem ext {left right : Cube σ} (equal : left.literals = right.literals) :
+    left = right := by
+  cases left
+  cases right
+  cases equal
+  rfl
+
+@[simp]
+theorem mem_literals_iff (literal : Literal σ) (cube : Cube σ) :
+    literal ∈ cube.literals ↔ literal ∈ cube := Iff.rfl
+
+@[simp]
+theorem mem_ofList_iff (literal : Literal σ) (literals : List (Literal σ)) :
+    literal ∈ ofList literals ↔ literal ∈ literals := Iff.rfl
+
+/-- The empty conjunction of literals. -/
+def empty : Cube σ := ofList []
+
+@[simp]
+theorem literals_empty : (empty : Cube σ).literals = [] := rfl
+
+@[simp]
+theorem not_mem_empty (literal : Literal σ) : literal ∉ (empty : Cube σ) := by
+  change literal ∉ ([] : List (Literal σ))
+  simp
+
+/-- The conjunction containing one literal. -/
+def singleton (literal : Literal σ) : Cube σ := ofList [literal]
+
+@[simp]
+theorem literals_singleton (literal : Literal σ) :
+    (singleton literal).literals = [literal] := rfl
+
+@[simp]
+theorem mem_singleton_iff (member : Literal σ) (literal : Literal σ) :
+    member ∈ singleton literal ↔ member = literal := by
+  change member ∈ [literal] ↔ member = literal
+  simp
+
+/-- Add a literal to the front of a cube. -/
+def cons (literal : Literal σ) (cube : Cube σ) : Cube σ :=
+  ofList (literal :: cube.literals)
+
+@[simp]
+theorem literals_cons (literal : Literal σ) (cube : Cube σ) :
+    (cons literal cube).literals = literal :: cube.literals := rfl
+
+/-- Conjoin two cubes. -/
+def append (left right : Cube σ) : Cube σ :=
+  ofList (left.literals ++ right.literals)
+
+@[simp]
+theorem literals_append (left right : Cube σ) :
+    (append left right).literals = left.literals ++ right.literals := rfl
+
+@[simp]
+theorem mem_append_iff (literal : Literal σ) (left right : Cube σ) :
+    literal ∈ append left right ↔ literal ∈ left ∨ literal ∈ right := by
+  simp [append]
+
+/-- Map literal occurrences while preserving their conjunction order. -/
+def mapLiterals (cube : Cube σ) (map : Literal σ → Literal τ) : Cube τ :=
+  ofList (cube.literals.map map)
+
+@[simp]
+theorem literals_mapLiterals (cube : Cube σ) (map : Literal σ → Literal τ) :
+    (mapLiterals cube map).literals = cube.literals.map map := rfl
+
+@[simp]
+theorem mem_mapLiterals_iff (literal : Literal τ) (cube : Cube σ)
+    (map : Literal σ → Literal τ) :
+    literal ∈ mapLiterals cube map ↔
+      ∃ source ∈ cube, map source = literal := by
+  simp [mapLiterals]
+
+/-- Extract the equality literals from a cube, preserving their order. -/
+def equalities (cube : Cube σ) : List (Literal σ) :=
+  cube.literals.filter (· matches .eq _ _)
+
+/-- Extract the disequality literals from a cube, preserving their order. -/
+def disequalities (cube : Cube σ) : List (Literal σ) :=
+  cube.literals.filter (· matches .ne _ _)
+
+@[simp]
+theorem eq_mem_equalities_iff {cube : Cube σ} :
+    Literal.eq left right ∈ Cube.equalities cube ↔
+      Literal.eq left right ∈ cube := by
   simp [equalities]
 
 @[simp]
-theorem ne_mem_disequalities_iff {formula : Formula σ} :
-    Literal.ne left right ∈ formula.disequalities ↔
-      Literal.ne left right ∈ formula := by
+theorem ne_mem_disequalities_iff {cube : Cube σ} :
+    Literal.ne left right ∈ Cube.disequalities cube ↔
+      Literal.ne left right ∈ cube := by
   simp [disequalities]
 
-end Formula
+end Cube
 
 end EUF

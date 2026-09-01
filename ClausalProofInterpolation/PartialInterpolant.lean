@@ -20,7 +20,7 @@ the two colored parts to reorder the original literal occurrences. -/
 structure ClausePartition (sig : ColoredSignature 2)
     (clause : Clause sig)
     extends ColoredClause sig where
-  reconstructs : toColoredClause.toClause.Perm clause
+  reconstructs : Clausal.Clause.Perm toColoredClause.toClause clause
 
 namespace ClausePartition
 
@@ -34,19 +34,21 @@ private theorem fin_two_eq_zero_or_one (side : Fin 2) :
 
 /-- The unique empty-clause partition. -/
 def empty (sig : ColoredSignature 2) :
-    ClausePartition sig [] where
-  part := fun _ => []
+    ClausePartition sig Clausal.Clause.empty where
+  part := fun _ => Clausal.Clause.empty
   part_color := by
     intro side literal member
     exact nomatch member
-  reconstructs := List.Perm.nil
+  reconstructs := by
+    simp [Clausal.Clause.Perm, ColoredClause.toClause,
+      Clausal.Clause.append, Clausal.Clause.empty]
 
 /-- Put every occurrence of an input clause in its owning color. Shared
 literals are deliberately owned by the input partition at this leaf. -/
 def owned {sig : ColoredSignature 2} (owner : Fin 2) (clause : Clause sig)
-    (clauseColor : Formula.IsColor sig owner clause) :
+    (clauseColor : Clause.IsColor sig owner clause) :
     ClausePartition sig clause where
-  part := fun side => if side = owner then clause else []
+  part := fun side => if side = owner then clause else Clausal.Clause.empty
   part_color := by
     intro side literal member
     by_cases same : side = owner
@@ -56,36 +58,41 @@ def owned {sig : ColoredSignature 2} (owner : Fin 2) (clause : Clause sig)
   reconstructs := by
     rcases fin_two_eq_zero_or_one owner with equal | equal
     · subst owner
-      simp [ColoredClause.toClause]
+      simp [Clausal.Clause.Perm, ColoredClause.toClause,
+        Clausal.Clause.append, Clausal.Clause.empty]
     · subst owner
-      simp [ColoredClause.toClause]
+      simp [Clausal.Clause.Perm, ColoredClause.toClause,
+        Clausal.Clause.append, Clausal.Clause.empty]
 
 @[simp]
 theorem falsifyingPart_owned_owner
     {sig : ColoredSignature 2} (owner : Fin 2) (clause : Clause sig)
-    (clauseColor : Formula.IsColor sig owner clause) :
+    (clauseColor : Clause.IsColor sig owner clause) :
     (owned owner clause clauseColor).toColoredClause.falsifyingPart owner =
-      clause.map Literal.negate := by
+      clause.negate := by
   simp [owned, ColoredClause.falsifyingPart]
 
 theorem part_eq_nil_of_empty
-    (partition : ClausePartition sig []) (side : Fin 2) :
-    partition.part side = [] := by
-  have concatenated : partition.part 0 ++ partition.part 1 = [] :=
-    partition.reconstructs.eq_nil
-  have parts := List.append_eq_nil_iff.mp concatenated
-  refine Fin.cases parts.1 ?_ side
+    (partition : ClausePartition sig Clausal.Clause.empty) (side : Fin 2) :
+    partition.part side = Clausal.Clause.empty := by
+  have concatenated :
+      (partition.part 0).literals ++ (partition.part 1).literals = [] := by
+    simpa [ColoredClause.toClause] using partition.reconstructs.eq_nil
+  have parts := List.append_eq_nil_iff.mp (show
+    (partition.part 0).literals ++ (partition.part 1).literals = [] from
+      concatenated)
+  refine Fin.cases (Clausal.Clause.ext parts.1) ?_ side
   intro predecessor
   have equal : predecessor = 0 := Subsingleton.elim _ _
   subst predecessor
-  exact parts.2
+  exact Clausal.Clause.ext parts.2
 
 /-- The partition already stored by a theory lemma reconstructs its own
 underlying clause. -/
 def ofTheoryLemma (lemma : TheoryLemma sig) :
     ClausePartition sig lemma.toClause where
   toColoredClause := lemma
-  reconstructs := List.Perm.refl _
+  reconstructs := by simp [Clausal.Clause.Perm]
 
 end ClausePartition
 
@@ -331,7 +338,7 @@ def atContradiction
     {sig : ColoredSignature 2} {inputs : ColoredCNF sig}
     {side : Fin 2}
     {interpolant : CNF sig}
-    (invariant : IsPartialInterpolantAt inputs []
+    (invariant : IsPartialInterpolantAt inputs Clausal.Clause.empty
       (ClausePartition.empty sig) side interpolant)
     (inputsUnsatisfiable : inputs.Unsatisfiable) :
     IsClausalInterpolantAt inputs side interpolant where
@@ -354,9 +361,9 @@ partition: reconstruction forces both parts of every empty-clause partition
 to be empty. -/
 def atAnyContradictionPartition
     {sig : ColoredSignature 2} {inputs : ColoredCNF sig}
-    {side : Fin 2} {partition : ClausePartition sig []}
+    {side : Fin 2} {partition : ClausePartition sig Clausal.Clause.empty}
     {interpolant : CNF sig}
-    (invariant : IsPartialInterpolantAt inputs [] partition side interpolant)
+    (invariant : IsPartialInterpolantAt inputs Clausal.Clause.empty partition side interpolant)
     (inputsUnsatisfiable : inputs.Unsatisfiable) :
     IsClausalInterpolantAt inputs side interpolant where
   inputs_unsatisfiable := inputsUnsatisfiable
@@ -365,13 +372,15 @@ def atAnyContradictionPartition
     intro interpretation satisfiesSide
     apply invariant.side_entails interpretation satisfiesSide
     simp [ColoredClause.falsifyingPart,
-      ClausePartition.part_eq_nil_of_empty partition side, Satisfies]
+      ClausePartition.part_eq_nil_of_empty partition side, Satisfies,
+      Clausal.Clause.empty, Clause.falsifyingCube]
   interpolant_other_unsatisfiable := by
     rintro ⟨interpretation, satisfiesInterpolant, satisfiesOther⟩
     apply invariant.interpolant_other_unsatisfiable
     refine ⟨interpretation, satisfiesInterpolant, satisfiesOther, ?_⟩
     simp [ColoredClause.falsifyingPart,
-      ClausePartition.part_eq_nil_of_empty partition side.rev, Satisfies]
+      ClausePartition.part_eq_nil_of_empty partition side.rev, Satisfies,
+      Clausal.Clause.empty, Clause.falsifyingCube]
 
 end IsPartialInterpolantAt
 

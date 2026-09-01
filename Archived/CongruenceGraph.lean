@@ -11,15 +11,15 @@ disequality into an EUF unsatisfiability certificate.
 namespace EUF
 
 /-- A congruence graph consists of edges certified by congruence-closure
-derivations from the formula's equality literals. -/
-structure CongruenceGraph (formula : Formula σ) where
+derivations from the cube's equality literals. -/
+structure CongruenceGraph (formula : Cube σ) where
   Edge : Term σ → Term σ → Prop
   edge_derivable :
     ∀ {left right}, Edge left right → DerivesEq formula left right
 
 /-- Undirected path connectivity in a congruence graph. -/
 inductive CongruenceGraph.Connected
-    {σ : Signature} {formula : Formula σ}
+    {σ : Signature} {formula : Cube σ}
     (graph : CongruenceGraph formula) : Term σ → Term σ → Prop where
   | refl (term) : graph.Connected term term
   | edge {left right} : graph.Edge left right → graph.Connected left right
@@ -44,10 +44,10 @@ theorem CongruenceGraph.connected_sound
   | trans _ _ ih₁ ih₂ =>
       exact ih₁.trans ih₂
 
-/-- A graph conflicts with a formula when it connects the two sides of one of
-the formula's disequalities. -/
+/-- A graph conflicts with a cube when it connects the two sides of one of
+the cube's disequalities. -/
 structure CongruenceGraph.Conflict
-    {σ : Signature} {formula : Formula σ}
+    {σ : Signature} {formula : Cube σ}
     (graph : CongruenceGraph formula) where
   left : Term σ
   right : Term σ

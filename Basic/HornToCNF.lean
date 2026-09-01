@@ -31,8 +31,8 @@ namespace EqualityHornClause
 
 /-- Read an equality Horn implication as an ordinary disjunctive EUF clause. -/
 def toClause (horn : EqualityHornClause signature) : Clause signature :=
-  horn.premises.map Equality.negatedLiteral ++
-    horn.conclusion.toList.map Equality.literal
+  Clausal.Clause.ofList (horn.premises.map Equality.negatedLiteral ++
+    horn.conclusion.toList.map Equality.literal)
 
 @[simp]
 theorem satisfied_toClause_iff
@@ -108,19 +108,11 @@ theorem satisfies_toCNF_iff
 
 end EqualityHornFormula
 
-namespace Clause
-
-def IsShared (sig : ColoredSignature k) (boundary : Fin (k - 1))
-  (clause : Clause sig) : Prop :=
-  ∀ literal ∈ clause, literal.HasColor sig (.shared boundary)
-
-end Clause
-
 namespace CNF
 
 def IsShared (sig : ColoredSignature k) (boundary : Fin (k - 1))
   (cnf : CNF sig) : Prop :=
-  ∀ clause ∈ cnf, clause.IsShared sig boundary
+  ∀ clause ∈ cnf, Clause.IsShared sig boundary clause
 
 @[simp]
 theorem isShared_nil (sig : ColoredSignature k)
@@ -134,10 +126,10 @@ theorem isShared_falsum (sig : ColoredSignature k)
     (boundary : Fin (k - 1)) :
     IsShared sig boundary (falsum : CNF sig) := by
   intro clause clauseMember literal literalMember
-  have clauseEmpty : clause = [] := by
+  have clauseEmpty : clause = Clausal.Clause.empty := by
     simpa [falsum] using clauseMember
   subst clause
-  exact nomatch literalMember
+  simp at literalMember
 
 @[simp]
 theorem isShared_append (sig : ColoredSignature k)

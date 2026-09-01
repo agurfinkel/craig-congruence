@@ -40,13 +40,13 @@ def F (term : Term signature) : Term signature := .unary .F term
 def xy : Equality signature := ⟨x, y⟩
 def uv : Equality signature := ⟨u, v⟩
 
-def formulaA : Formula signature :=
-  [.eq u (F x), .eq v (F y)]
+def formulaA : Cube signature :=
+  Cube.ofList [Literal.eq u (F x), Literal.eq v (F y)]
 
-def formulaB : Formula signature :=
-  [.eq x y, .ne u v]
+def formulaB : Cube signature :=
+  Cube.ofList [Literal.eq x y, Literal.ne u v]
 
-def formulas : InterpolationColor → Formula signature
+def formulas : InterpolationColor → Cube signature
   | 0 => formulaA
   | 1 => formulaB
 
@@ -99,18 +99,18 @@ private theorem deriveXY : DerivesEq (formulas 1) x y := by
   simp [formulas, formulaB]
 
 private theorem deriveUV :
-    DerivesEq (formulas 0 ++ [xy.literal]) u v := by
-  have hux : DerivesEq (formulas 0 ++ [xy.literal]) u (F x) := by
+    DerivesEq (Cube.append (formulas 0) (Cube.singleton xy.literal)) u v := by
+  have hux : DerivesEq (Cube.append (formulas 0) (Cube.singleton xy.literal)) u (F x) := by
     apply DerivesEq.assumption
     simp [formulas, formulaA]
-  have hxy : DerivesEq (formulas 0 ++ [xy.literal]) x y := by
+  have hxy : DerivesEq (Cube.append (formulas 0) (Cube.singleton xy.literal)) x y := by
     apply DerivesEq.assumption
-    simp [xy, Equality.literal]
-  have hFxy : DerivesEq (formulas 0 ++ [xy.literal]) (F x) (F y) := by
+    simp [Cube.mem_append_iff, Cube.singleton, xy, Equality.literal]
+  have hFxy : DerivesEq (Cube.append (formulas 0) (Cube.singleton xy.literal)) (F x) (F y) := by
     apply DerivesEq.congr Function.F
     intro _
     exact hxy
-  have hFyv : DerivesEq (formulas 0 ++ [xy.literal]) (F y) v := by
+  have hFyv : DerivesEq (Cube.append (formulas 0) (Cube.singleton xy.literal)) (F y) v := by
     apply DerivesEq.symm
     apply DerivesEq.assumption
     simp [formulas, formulaA]
@@ -130,7 +130,7 @@ def dependenciesXY :
 /-- A consumes `x = y` and produces `u = v` by congruence through local F. -/
 def proofUV : EqualityExchangeProof formulas 0 edgeUV :=
   .derive 0 edgeUV [xy] dependenciesXY (by
-    change DerivesEq (formulas 0 ++ [xy.literal]) u v
+    change DerivesEq (Cube.append (formulas 0) (Cube.singleton xy.literal)) u v
     exact deriveUV)
 
 def dependenciesUV :
@@ -139,9 +139,9 @@ def dependenciesUV :
   exact .cons proofUV (.nil 0)
 
 private theorem conflictDerivation :
-    DerivesEq (formulas 1 ++ [uv.literal]) u v := by
+    DerivesEq (Cube.append (formulas 1) (Cube.singleton uv.literal)) u v := by
   apply DerivesEq.assumption
-  simp [uv, Equality.literal]
+  simp [Cube.mem_append_iff, Cube.singleton, uv, Equality.literal]
 
 /-- B owns `u != v`; the communicated `u = v` closes the conflict. -/
 def conflict : EqualityInterpolationConflict signature naming formulas :=
@@ -188,14 +188,14 @@ private theorem coloredAt
     literal.Colorable signature ∧ literal.AvailableIn signature partition :=
   ⟨⟨color, hasColor⟩, (hasColor partition).mpr allowed⟩
 
-private theorem formulaA_color : Formula.IsColor signature 0 formulaA := by
+private theorem formulaA_color : Cube.IsColor signature 0 formulaA := by
   intro literal member
   simp [formulaA] at member
   rcases member with rfl | rfl
   · exact coloredAt hasColor_A_uFx rfl
   · exact coloredAt hasColor_A_vFy rfl
 
-private theorem formulaB_color : Formula.IsColor signature 1 formulaB := by
+private theorem formulaB_color : Cube.IsColor signature 1 formulaB := by
   intro literal member
   simp [formulaB] at member
   rcases member with rfl | rfl

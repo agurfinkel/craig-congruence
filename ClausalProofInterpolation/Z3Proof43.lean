@@ -31,14 +31,14 @@ def d : Term signature := .constant .d
 def F (term : Term signature) : Term signature := .unary .F term
 
 def inputA : CNF signature :=
-  [[.ne (F b) (F d), .eq a b, .eq a d],
-   [.ne (F a) (F b), .ne (F a) (F d)],
-   [.ne (F a) (F d), .ne (F b) (F d)],
-   [.ne (F a) (F d)]]
+  [Clausal.Clause.ofList [.ne (F b) (F d), .eq a b, .eq a d],
+   Clausal.Clause.ofList [.ne (F a) (F b), .ne (F a) (F d)],
+   Clausal.Clause.ofList [.ne (F a) (F d), .ne (F b) (F d)],
+   Clausal.Clause.ofList [.ne (F a) (F d)]]
 
 def inputB : CNF signature :=
-  [[.eq b c],
-   [.eq (F c) (F d)]]
+  [Clausal.Clause.ofList [.eq b c],
+   Clausal.Clause.ofList [.eq (F c) (F d)]]
 
 @[simp] private theorem sharedAB_allows (partition : Fin 2) :
     Color.sharedAB.Allows partition := by
@@ -146,7 +146,8 @@ def inputs : ColoredCNF signature where
         exact coloredAt hasColor_B_FcFd rfl
 
 /-- The exact clausal form of Z3's `(not (= (F b) (F d)))`. -/
-def interpolant : CNF signature := [[.ne (F b) (F d)]]
+def interpolant : CNF signature :=
+  [Clausal.Clause.ofList [.ne (F b) (F d)]]
 
 private theorem eval_F_congr (interpretation : Interpretation signature)
     {left right : Term signature}
@@ -161,8 +162,10 @@ private theorem satisfies_inputA_implies_interpolant
     (satisfies : inputA.Satisfied interpretation) :
     interpolant.Satisfied interpretation := by
   have first := satisfies
-    [.ne (F b) (F d), .eq a b, .eq a d] (by simp [inputA])
-  have last := satisfies [.ne (F a) (F d)] (by simp [inputA])
+    (Clausal.Clause.ofList [.ne (F b) (F d), .eq a b, .eq a d])
+      (by simp [inputA])
+  have last := satisfies (Clausal.Clause.ofList [.ne (F a) (F d)])
+    (by simp [inputA])
   simp [Clause.Satisfied, SatisfiesLiteral] at first last
   simp [interpolant, CNF.Satisfied, Clause.Satisfied, SatisfiesLiteral]
   rcases first with hne | hab | had
@@ -177,9 +180,10 @@ private theorem interpolant_and_inputB_false
     (satisfiesInterpolant : interpolant.Satisfied interpretation)
     (satisfiesB : inputB.Satisfied interpretation) : False := by
   have hne := satisfiesInterpolant
-    [.ne (F b) (F d)] (by simp [interpolant])
-  have hbc := satisfiesB [.eq b c] (by simp [inputB])
-  have hFcd := satisfiesB [.eq (F c) (F d)] (by simp [inputB])
+    (Clausal.Clause.ofList [.ne (F b) (F d)]) (by simp [interpolant])
+  have hbc := satisfiesB (Clausal.Clause.ofList [.eq b c]) (by simp [inputB])
+  have hFcd := satisfiesB (Clausal.Clause.ofList [.eq (F c) (F d)])
+    (by simp [inputB])
   simp [Clause.Satisfied, SatisfiesLiteral] at hne hbc hFcd
   have hFbc := eval_F_congr interpretation hbc
   exact hne (hFbc.trans hFcd)

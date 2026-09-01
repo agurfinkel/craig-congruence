@@ -20,7 +20,7 @@ namespace EUF
 
 /-- One locally checkable equality inference over an earlier database. -/
 inductive EqualityCertificateStep
-    (formula : Formula sig) (previous : List (Equality sig)) :
+    (formula : Cube sig) (previous : List (Equality sig)) :
     Equality sig → Type where
   | refl (term : Term sig) :
       EqualityCertificateStep formula previous ⟨term, term⟩
@@ -46,7 +46,7 @@ namespace EqualityCertificateStep
 
 /-- A locally valid step preserves the semantic equality-derivation relation. -/
 def sound
-    {formula : Formula sig} {previous : List (Equality sig)}
+    {formula : Cube sig} {previous : List (Equality sig)}
     {result : Equality sig}
     (step : EqualityCertificateStep formula previous result)
     (previousSound : ∀ index : Fin previous.length,
@@ -70,7 +70,7 @@ end EqualityCertificateStep
 
 /-- A finite equality proof DAG. Every new node may reference only nodes in
 the tail, so malformed forward or cyclic references are unrepresentable. -/
-inductive EqualityCertificate (formula : Formula sig) :
+inductive EqualityCertificate (formula : Cube sig) :
     List (Equality sig) → Type where
   | empty : EqualityCertificate formula []
   | add
@@ -83,7 +83,7 @@ namespace EqualityCertificate
 
 /-- Replay every checked node into `DerivesEq`. -/
 def derivation
-    {formula : Formula sig} {equalities : List (Equality sig)}
+    {formula : Cube sig} {equalities : List (Equality sig)}
     (certificate : EqualityCertificate formula equalities) :
     ∀ index : Fin equalities.length,
       DerivesEq formula (equalities.get index).left
@@ -100,7 +100,7 @@ def derivation
 
 /-- The most recently added equality is the certificate conclusion. -/
 def conclusion
-    {formula : Formula sig} {result : Equality sig}
+    {formula : Cube sig} {result : Equality sig}
     {previous : List (Equality sig)}
     (certificate : EqualityCertificate formula (result :: previous)) :
     DerivesEq formula result.left result.right :=

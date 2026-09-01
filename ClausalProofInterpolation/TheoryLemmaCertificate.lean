@@ -25,8 +25,8 @@ underlying disjunctive clause is valid. -/
 theorem valid_of_falsifyingParts_unsatisfiable
     (clause : ColoredClause sig)
     (unsatisfiable : Unsatisfiable
-      (clause.falsifyingPart 0 ++ clause.falsifyingPart 1)) :
-    clause.toClause.Valid := by
+      (Cube.append (clause.falsifyingPart 0) (clause.falsifyingPart 1))) :
+    EUF.Clause.Valid clause.toClause := by
   classical
   intro interpretation
   by_cases satisfied : clause.toClause.Satisfied interpretation

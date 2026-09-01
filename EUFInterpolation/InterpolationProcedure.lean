@@ -87,10 +87,10 @@ end SharedEqualityEdge
 mutual
 
   /-- A proof-producing communication step. An equality produced by one local
-  color is derived from that color's input formula and finitely many shared
+  color is derived from that color's input cube and finitely many shared
   equalities previously produced by the other local color. -/
   inductive EqualityExchangeProof {sig : ColoredSignature 2} {naming : TermNaming sig}
-      (formulas : InterpolationColor → Formula sig) :
+      (formulas : InterpolationColor → Cube sig) :
       InterpolationColor → SharedEqualityEdge naming → Type where
     | derive (producer : InterpolationColor)
         (edge : SharedEqualityEdge naming)
@@ -98,14 +98,15 @@ mutual
         (dependencies : EqualityExchangeDependencies
           (naming := naming) formulas producer.other premises)
         (derivation : DerivesEq
-          (formulas producer ++ premises.map Equality.literal)
+          (Cube.append (formulas producer)
+            (Cube.ofList (premises.map Equality.literal)))
           edge.equality.left edge.equality.right) :
         EqualityExchangeProof formulas producer edge
 
   /-- A finite list of communicated equality proofs, indexed by the equalities
   that they supply to the receiving closure. -/
   inductive EqualityExchangeDependencies {sig : ColoredSignature 2} {naming : TermNaming sig}
-      (formulas : InterpolationColor → Formula sig) :
+      (formulas : InterpolationColor → Cube sig) :
       InterpolationColor → List (Equality sig) → Type where
     | nil (producer : InterpolationColor) :
         EqualityExchangeDependencies (naming := naming) formulas producer []
@@ -120,7 +121,7 @@ end
 
 variable {sig : ColoredSignature 2}
   {naming : TermNaming sig}
-  {formulas : InterpolationColor → Formula sig}
+  {formulas : InterpolationColor → Cube sig}
 
 namespace EqualityExchangeProof
 
@@ -134,7 +135,7 @@ the other color provides those premises.
 def ofAbstractClosure
     {sig : ColoredSignature 2}
     {naming : TermNaming sig}
-    {formulas : InterpolationColor → Formula sig}
+    {formulas : InterpolationColor → Cube sig}
     {producer : InterpolationColor}
     (system : AbstractRewriteSystem sig naming.Name)
     (realized : naming.RealizedBy system)
@@ -142,8 +143,9 @@ def ofAbstractClosure
     (premises : List (Equality sig))
     (dependencies : EqualityExchangeDependencies
       (naming := naming) formulas producer.other premises)
-    (closure : AbstractCongruenceClosure
-      (formulas producer ++ premises.map Equality.literal) system)
+  (closure : AbstractCongruenceClosure
+      (Cube.append (formulas producer)
+        (Cube.ofList (premises.map Equality.literal))) system)
     (edgeJoinable : system.Joinable
       (ExtendedSignature.constant edge.left)
       (ExtendedSignature.constant edge.right)) :
@@ -229,12 +231,12 @@ theorem EqualityExchangeProof.interpolant_entailed_by_color_zero
       · apply (EqualityHornFormula.satisfies_singleton interpretation _).mpr
         intro satisfiesEqualities
         have satisfiesPremises :
-            Satisfies interpretation (premises.map Equality.literal) :=
+            Satisfies interpretation (Cube.ofList (premises.map Equality.literal)) :=
           (satisfies_equality_literals interpretation premises).mpr
             satisfiesEqualities
         exact derivation.sound
           ((satisfies_append interpretation (formulas 0)
-            (premises.map Equality.literal)).mpr
+            (Cube.ofList (premises.map Equality.literal))).mpr
             ⟨satisfiesColorZero, satisfiesPremises⟩)
       · exact EqualityHornFormula.satisfies_nil interpretation
   · intro _ interpretation _
@@ -261,12 +263,13 @@ theorem EqualityExchangeDependencies.interpolant_entailed_by_color_zero
       · apply (EqualityHornFormula.satisfies_singleton interpretation _).mpr
         intro satisfiesEqualities
         have satisfiesPremises :
-            Satisfies interpretation (localPremises.map Equality.literal) :=
+            Satisfies interpretation
+              (Cube.ofList (localPremises.map Equality.literal)) :=
           (satisfies_equality_literals interpretation localPremises).mpr
             satisfiesEqualities
         exact derivation.sound
           ((satisfies_append interpretation (formulas 0)
-            (localPremises.map Equality.literal)).mpr
+            (Cube.ofList (localPremises.map Equality.literal))).mpr
             ⟨satisfiesColorZero, satisfiesPremises⟩)
       · exact EqualityHornFormula.satisfies_nil interpretation
   · intro _ interpretation _
@@ -289,7 +292,7 @@ theorem EqualityExchangeProof.color_one_and_interpolant_entail_equality
       ∀ interpretation : Interpretation sig,
         Satisfies interpretation (formulas 1) →
         SatisfiesEqualityHornFormula interpretation dependencies.interpolant →
-        Satisfies interpretation (premises.map Equality.literal))
+        Satisfies interpretation (Cube.ofList (premises.map Equality.literal)))
     ?_ ?_ ?_ proof interpretation satisfiesColorOne satisfiesInterpolant
   · intro producer produced premises dependencies derivation dependenciesIH
       interpretation satisfiesColorOne satisfiesInterpolant
@@ -297,7 +300,7 @@ theorem EqualityExchangeProof.color_one_and_interpolant_entail_equality
       (EqualityHornFormula.satisfies_append interpretation _ _).mp
         satisfiesInterpolant
     have satisfiesPremises :
-        Satisfies interpretation (premises.map Equality.literal) :=
+        Satisfies interpretation (Cube.ofList (premises.map Equality.literal)) :=
       dependenciesIH interpretation satisfiesColorOne parts.1
     rcases producer.eq_zero_or_eq_one with rfl | rfl
     ·
@@ -309,7 +312,7 @@ theorem EqualityExchangeProof.color_one_and_interpolant_entail_equality
     ·
         exact derivation.sound
           ((satisfies_append interpretation (formulas 1)
-            (premises.map Equality.literal)).mpr
+            (Cube.ofList (premises.map Equality.literal))).mpr
             ⟨satisfiesColorOne, satisfiesPremises⟩)
   · intro _ interpretation _ _ literal member
     exact nomatch member
@@ -334,7 +337,7 @@ theorem EqualityExchangeDependencies.equalities_entailed_by_color_one
     (satisfiesColorOne : Satisfies interpretation (formulas 1))
     (satisfiesInterpolant :
       SatisfiesEqualityHornFormula interpretation dependencies.interpolant) :
-    Satisfies interpretation (premises.map Equality.literal) := by
+    Satisfies interpretation (Cube.ofList (premises.map Equality.literal)) := by
   refine EqualityExchangeDependencies.rec
     (motive_1 := fun _ edge proof =>
       ∀ interpretation : Interpretation sig,
@@ -348,7 +351,8 @@ theorem EqualityExchangeDependencies.equalities_entailed_by_color_one
       (EqualityHornFormula.satisfies_append interpretation _ _).mp
         satisfiesInterpolant
     have satisfiesPremises :
-        Satisfies interpretation (localPremises.map Equality.literal) :=
+        Satisfies interpretation
+          (Cube.ofList (localPremises.map Equality.literal)) :=
       dependenciesIH interpretation satisfiesColorOne parts.1
     rcases producer.eq_zero_or_eq_one with rfl | rfl
     ·
@@ -360,7 +364,7 @@ theorem EqualityExchangeDependencies.equalities_entailed_by_color_one
     ·
         exact derivation.sound
           ((satisfies_append interpretation (formulas 1)
-            (localPremises.map Equality.literal)).mpr
+            (Cube.ofList (localPremises.map Equality.literal))).mpr
             ⟨satisfiesColorOne, satisfiesPremises⟩)
   · intro _ interpretation _ _ literal member
     exact nomatch member
@@ -447,14 +451,15 @@ explicit disequality, its color-`1` dependencies become a negative Horn clause.
 If color `1` owns it, the color-`0` dependencies suffice to close the conflict. -/
 inductive EqualityInterpolationConflict (sig : ColoredSignature 2)
     (naming : TermNaming sig)
-    (formulas : InterpolationColor → Formula sig) : Type where
+    (formulas : InterpolationColor → Cube sig) : Type where
   | atColorZero (left right : Term sig)
       (disequality : Literal.ne left right ∈ formulas 0)
       (premises : List (Equality sig))
       (dependencies : EqualityExchangeDependencies
         (naming := naming) formulas 1 premises)
       (derivation : DerivesEq
-        (formulas 0 ++ premises.map Equality.literal) left right) :
+        (Cube.append (formulas 0)
+          (Cube.ofList (premises.map Equality.literal))) left right) :
       EqualityInterpolationConflict sig naming formulas
   | atColorOne (left right : Term sig)
       (disequality : Literal.ne left right ∈ formulas 1)
@@ -462,7 +467,8 @@ inductive EqualityInterpolationConflict (sig : ColoredSignature 2)
       (dependencies : EqualityExchangeDependencies
         (naming := naming) formulas 0 premises)
       (derivation : DerivesEq
-        (formulas 1 ++ premises.map Equality.literal) left right) :
+        (Cube.append (formulas 1)
+          (Cube.ofList (premises.map Equality.literal))) left right) :
       EqualityInterpolationConflict sig naming formulas
 
 namespace EqualityInterpolationConflict
@@ -519,7 +525,7 @@ theorem interpolant_entailed_by_color_zero
         have equal : interpretation.eval left = interpretation.eval right :=
           derivation.sound
             ((satisfies_append interpretation (formulas 0)
-              (premises.map Equality.literal)).mpr
+              (Cube.ofList (premises.map Equality.literal))).mpr
               ⟨satisfiesColorZero, satisfiesPremises⟩)
         exact (satisfiesColorZero _ disequality) equal
 
@@ -534,7 +540,7 @@ theorem interpolant_unsatisfiable_with_color_one
       have equal : interpretation.eval left = interpretation.eval right :=
         derivation.sound
           ((satisfies_append interpretation (formulas 1)
-            (premises.map Equality.literal)).mpr
+            (Cube.ofList (premises.map Equality.literal))).mpr
             ⟨satisfiesColorOne, satisfiesPremises⟩)
       exact (satisfiesColorOne _ disequality) equal
   | atColorZero _ _ _ premises dependencies _ =>
@@ -555,12 +561,12 @@ constructing such a certificate for every inconsistent input is the separate
 completeness problem. -/
 theorem sound
     (conflict : EqualityInterpolationConflict sig naming formulas)
-    (formulaColors : ∀ color, Formula.IsColor sig color (formulas color)) :
+    (formulaColors : ∀ color, Cube.IsColor sig color (formulas color)) :
     IsInterpolant sig (formulas 0) (formulas 1) conflict.interpolant := by
   have entails := conflict.interpolant_entailed_by_color_zero
   have unsatisfiableWithColorOne :=
     conflict.interpolant_unsatisfiable_with_color_one
-  have inputsUnsatisfiable : Unsatisfiable (formulas 0 ++ formulas 1) := by
+  have inputsUnsatisfiable : Unsatisfiable (Cube.append (formulas 0) (formulas 1)) := by
     rintro ⟨interpretation, satisfiesInputs⟩
     have parts :=
       (satisfies_append interpretation (formulas 0) (formulas 1)).mp
