@@ -1224,7 +1224,7 @@ noncomputable def annotationPR :
   let projection : PartitionedResolutionStep Sig t1ResolveQ
       annotationT1.partition annotationQ.partition partitionPR := by
     simpa [annotationT1, annotationQ, annotation1,
-      ClauseAnnotation.theory, ClauseAnnotation.inputOnOtherSide]
+      ClauseAnnotation.theory, ClauseAnnotation.inputOnOtherSide, id]
       using projectionT1Q
   exact ClauseAnnotation.resolve annotationT1 annotationQ partitionPR projection
     (.onOtherSide (by
@@ -1250,7 +1250,7 @@ noncomputable def annotationUT :
   let projection : PartitionedResolutionStep Sig t2ResolveR
       annotationT2.partition annotationR.partition partitionUT := by
     simpa [annotationT2, annotationR, annotation2,
-      ClauseAnnotation.theory, ClauseAnnotation.inputOnOtherSide]
+      ClauseAnnotation.theory, ClauseAnnotation.inputOnOtherSide, id]
       using projectionT2R
   exact ClauseAnnotation.resolve annotationT2 annotationR partitionUT projection
     (.onOtherSide (by
@@ -1327,7 +1327,7 @@ noncomputable def annotationUSQ :
   let projection : PartitionedResolutionStep Sig t3ResolveR
       annotationT3.partition annotationR.partition partitionUSQ := by
     simpa [annotationT3, annotationR, annotation3,
-      ClauseAnnotation.theory, ClauseAnnotation.inputOnOtherSide]
+      ClauseAnnotation.theory, ClauseAnnotation.inputOnOtherSide, id]
       using projectionT3R
   exact ClauseAnnotation.resolve annotationT3 annotationR partitionUSQ projection
     (.onOtherSide (by

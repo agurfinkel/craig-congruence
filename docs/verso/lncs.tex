@@ -1,0 +1,16 @@
+% Project presentation overrides after Springer's unmodified LNCS class.
+% Keep its serif text, type sizes, heading styles, and page geometry.
+\setmonofont[Scale=0.90]{DejaVu Sans Mono}
+\hypersetup{hidelinks,pdftitle={Craig interpolation for EUF}}
+\emergencystretch=\textwidth
+
+% Declarations read like paper displays, without decorative boxes.
+\renewtcolorbox{docstringBox}[2][]{
+  enhanced, breakable,
+  frame hidden, interior hidden, segmentation hidden,
+  colbacktitle=white, coltitle=black,
+  fonttitle=\normalfont\small\bfseries,
+  boxrule=0pt, arc=0pt,
+  left=0pt, right=0pt, top=3pt, bottom=3pt,
+  before skip=10pt, after skip=10pt,
+  title={#2},#1}

@@ -1,0 +1,36 @@
+% Plain PDF presentation for a human proof auditor.
+\setmainfont{DejaVu Sans}
+\setsansfont{DejaVu Sans}
+\setmonofont[Scale=0.90]{DejaVu Sans Mono}
+
+\setlrmarginsandblock{25mm}{25mm}{*}
+\setulmarginsandblock{25mm}{25mm}{*}
+\checkandfixthelayout
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.5em}
+\linespread{1.1}
+\AtBeginDocument{\raggedright}
+
+\chapterstyle{default}
+\renewcommand*{\chapterheadstart}{\vspace*{0pt}}
+\renewcommand*{\printchaptername}{}
+\renewcommand*{\chapnumfont}{\normalfont\Large\bfseries}
+\renewcommand*{\chaptitlefont}{\normalfont\Large\bfseries}
+\renewcommand*{\afterchapternum}{\hspace{0.5em}}
+\setlength{\afterchapskip}{18pt}
+\setsecheadstyle{\normalfont\large\bfseries}
+\setsubsecheadstyle{\normalfont\normalsize\bfseries}
+\setsubsubsecheadstyle{\normalfont\normalsize\bfseries}
+\setbeforesecskip{1.2em}
+\setaftersecskip{0.4em}
+\hypersetup{hidelinks}
+
+\renewtcolorbox{docstringBox}[2][]{
+  breakable,
+  colback=white, colframe=black!35,
+  colbacktitle=white, coltitle=black,
+  fonttitle=\normalfont\small\bfseries,
+  boxrule=0.3pt, titlerule=0.3pt, arc=0pt,
+  left=6pt, right=6pt, top=6pt, bottom=6pt,
+  before skip=12pt, after skip=12pt,
+  title={#2},#1}

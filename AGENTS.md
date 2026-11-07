@@ -1,6 +1,6 @@
 # Craig congruence project instructions
 
-Research notes at: `/Users/arie/ag/git/craig-congruence-research`
+Research notes at: `/ag/git/craig-congruence/btf`
 
 Use the `better-than-fish` skill to add and maintain research notes. Keep
 active investigation content in the notes repository rather than this file.

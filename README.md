@@ -42,6 +42,10 @@ Build the project with:
 lake build
 ```
 
+The [Verso audit manual](docs/verso/README.md) explains the key proof ideas,
+the supplied certificate obligations, and the boundary with external solvers.
+It includes checked examples, declaration references, and linked Lean sources.
+
 ## Library structure
 
 The single Lake package contains six libraries with explicit import

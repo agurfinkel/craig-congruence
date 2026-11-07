@@ -1,3 +1,8 @@
 # SPDX-License-Identifier: MIT
 
 /.lake
+/docs/verso/.lake
+/docs/verso/_out
+__pycache__/
+# The research notebook is an independently versioned repository.
+/btf/
