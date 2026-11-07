@@ -341,7 +341,10 @@ theorem sound
   let emptyAnnotation := annotation.cast certificate.contradiction_eq
   have result := emptyAnnotation.correct.atAnyContradictionPartition
       refutation.inputs_unsatisfiable
-  simpa [interpolant, emptyAnnotation] using result
+  change IsClausalInterpolantAt inputs side
+    (annotation.cast certificate.contradiction_eq).interpolant at result
+  rw [ClauseAnnotation.cast_interpolant] at result
+  exact result
 
 end InterpolatedClauseRefutation
 
